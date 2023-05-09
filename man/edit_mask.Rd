@@ -52,6 +52,3 @@ pressure_data <- edit_mask(pressure_data, n_edit, threshold = 0.002,
   edit_list = seq(1,length(pressure_data[[5]])), image = "max")
 \dontshow{\}) # examplesIf}
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

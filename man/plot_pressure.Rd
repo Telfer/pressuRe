@@ -67,8 +67,4 @@ plot_pressure(pressure_data, variable = "max", plot_COP = FALSE)
 plot_pressure(pressure_data, variable = "frame", frame = 20,
               plot_colors = "custom", break_values = c(100, 200, 300, 750),
               break_colors = c("blue", "green", "yellow", "red", "pink"))
-plot_pressure(pressure_data, variable = "max", step_n = 9)
-}
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
 }

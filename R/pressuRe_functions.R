@@ -245,7 +245,6 @@ load_pedar <- function(pressure_filepath) {
 #'  }
 #'  @examples
 #' tekscan_data <- system.file("extdata", "fscan_testL.asf", package = "pressuRe")
-#' tekscan_data <- system.file("extdata", "iscan_test.csv", package = "pressuRe")
 #' pressure_data <- load_tekscan(tekscan_data)
 #'  @importFrom
 #'  @export
@@ -966,7 +965,6 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 #' plot_pressure(pressure_data, variable = "frame", frame = 20,
 #'               plot_colors = "custom", break_values = c(100, 200, 300, 750),
 #'               break_colors = c("blue", "green", "yellow", "red", "pink"))
-#' plot_pressure(pressure_data, variable = "max", step_n = 9)
 #' @importFrom ggplot2 ggplot aes geom_raster geom_polygon scale_fill_manual
 #' theme geom_point element_rect binned_scale unit
 #' @importFrom scales manual_pal
@@ -1128,7 +1126,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
   # plot
   img_fns <- rep(NA, length.out = n_frames)
   pb <- txtProgressBar(min = 1, max = n_frames, style = 3)
-  print("processing images")
+  message("processing images")
   for (i in 1:n_frames) {
     # make plot
     g <- plot_pressure(pressure_data, variable = "frame", frame = i,
@@ -1142,7 +1140,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 
   # update progress
   close(pb)
-  print("generating and saving animation")
+  message("generating and saving animation")
 
   # load images back in
   allInfo <- image_info(image_read(img_fns))
@@ -1337,7 +1335,7 @@ automask <- function(pressure_data, foot_side = "auto", mask_scheme,
     g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
     g <- g + geom_path(data = mask_df, aes(x = x, y = y, group = mask),
                        color = "red", linewidth = 1)
-    print(g)
+    suppressMessages(print(g))
   }
 
   # Return masks for analysis
@@ -1393,9 +1391,7 @@ create_mask <- function(pressure_data, n_verts = 4, n_masks = 1,
   mask_vertices <- data.frame(x = double(), y = double())
 
   # check session is interactive
-  if (interactive() == FALSE){
-        stop("user needs to select mask vertices")
-  }
+  if (interactive() == FALSE){stop("user needs to select mask vertices")}
 
   # plot existing masks or just footprint
   if (plot_existing_mask == TRUE & length(pressure_data[[5]]) > 0) {
@@ -1473,7 +1469,7 @@ create_mask <- function(pressure_data, n_verts = 4, n_masks = 1,
   if (mask_names[1] == "default" & length(mask_names) == 1){
 
     names(pressure_data[[5]])[(n_exist_mask+1):(n_masks+n_exist_mask)] <- sprintf("custom_mask%d", seq(1,n_masks))
-  }else{
+  } else {
     names(pressure_data[[5]])[(n_exist_mask+1):(n_masks+n_exist_mask)] <- mask_names
   }
 
@@ -1516,16 +1512,15 @@ create_mask <- function(pressure_data, n_verts = 4, n_masks = 1,
 #' @export
 
 edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
-                      edit_list = seq(1,length(pressure_data[[5]])), image = "max") {
+                      edit_list = seq(1,length(pressure_data[[5]])),
+                      image = "max") {
   # check session is interactive
-  if (interactive() == FALSE) {
-    stop("user needs to select mask vertices")
-  }
+  if (interactive() == FALSE) {stop("user needs to select mask vertices")}
 
   # global variables
   X <- Y <- NULL
 
-  if(n_edit > 0){
+  if (n_edit > 0) {
     # plot original mask data
     g <- plot_masks(pressure_data, image = image)
 
@@ -2024,7 +2019,7 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
   #g <- g + geom_point(data = end_point, aes (x = x_coord, y = y_coord), shape = 2)
   #g <- g + geom_line(data = m_bor, aes(x = x_coord, y = y_coord), colour = "purple")
   #g <- g + geom_line(data = l_bor, aes(x = x_coord, y = y_coord), colour = "orange")
-  print(g)
+  #print(g)
   #auto_worked <- readline("Have points been correctly identified? c: manually select cop; a: manually select all")
 
   ## if automatic identification failed, redo manually

@@ -29,6 +29,3 @@ emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 footprint(pressure_data, plot = TRUE)
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

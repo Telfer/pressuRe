@@ -59,6 +59,3 @@ threshold = 0.005, plot_existing_mask = TRUE,
 image = "max", mask_names = c("default"), preview = TRUE)
 \dontshow{\}) # examplesIf}
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

@@ -32,7 +32,3 @@ emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- pressure_interp(pressure_data, interp_to = 101)
 }
-\author{
-Scott Telfer
-\email{scott.telfer@gmail.com}
-}

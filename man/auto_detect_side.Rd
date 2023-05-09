@@ -24,6 +24,3 @@ emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 auto_detect_side(pressure_data)
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

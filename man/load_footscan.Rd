@@ -30,6 +30,3 @@ pressure_data <- load_footscan(footscan_data)
 Imports and formats files collected on footscan systems
 (formerly RSScan)
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

@@ -37,6 +37,3 @@ pressure_data <- load_emed(emed_data)
 animate_pressure(pressure_data, fps = 10, file_name = "testgif.gif")
 \dontshow{\}) # examplesIf}
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

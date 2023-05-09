@@ -44,6 +44,3 @@ pressure_data <- load_emed(emed_data)
 pressure_data <- automask(pressure_data)
 mask_analysis(pressure_data, FALSE, variable = "press_peak")
 }
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
-}

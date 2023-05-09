@@ -4,12 +4,17 @@
 \name{pressuRe-package}
 \alias{pressuRe}
 \alias{pressuRe-package}
-\title{pressuRe: Imports, processes, and visualizes biomechanical pressure data}
+\title{pressuRe: Imports, Processes, and Visualizes Biomechanical Pressure Data}
 \description{
-Allows biomechanical pressure data from a range of systems to be imported and processed in a repeatable manner. Also includes functions for visualizing and animating data.
+Allows biomechanical pressure data from a range of systems to be imported and processed in a reproducible manner. Automatic and manual tools are included to let the user define regions (masks) to be analyzed. Also includes functions for visualizing and animating pressure data. Example methods are described in Shi et al., (2022) \doi{10.1038/s41598-022-19814-0}, Lee et al., (2014) \doi{10.1186/1757-1146-7-18}, van der Zward et al., (2014) \doi{10.1186/1757-1146-7-20}, and Najafi et al., (2010) \doi{10.1016/j.gaitpost.2009.09.003}.
 }
 \author{
-\strong{Maintainer}: Scott Telfer \email{scott.telfer@gmail.com} (\href{https://orcid.org/0000-0002-0104-4027}{ORCID})
+\strong{Maintainer}: Scott Telfer \email{scott.telfer@gmail.com} (\href{https://orcid.org/0000-0002-0104-4027}{ORCID}) [copyright holder]
+
+Authors:
+\itemize{
+  \item Ellen Li \email{eli17@uw.edu} (\href{https://orcid.org/0000-0001-5545-7364}{ORCID})
+}
 
 }
 \keyword{internal}

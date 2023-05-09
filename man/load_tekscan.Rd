@@ -22,7 +22,6 @@ A list with information about the pressure data.
  }
  @examples
 tekscan_data <- system.file("extdata", "fscan_testL.asf", package = "pressuRe")
-tekscan_data <- system.file("extdata", "iscan_test.csv", package = "pressuRe")
 pressure_data <- load_tekscan(tekscan_data)
  @importFrom
  @export
@@ -30,7 +29,4 @@ pressure_data <- load_tekscan(tekscan_data)
 \description{
 Imports and formats files collected on tekscan systems and
    exported from Tekscan software
-}
-\author{
-Scott Telfer \email{scott.telfer@gmail.com}
 }
