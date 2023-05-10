@@ -13,7 +13,7 @@ Allows biomechanical pressure data from a range of systems to be imported and pr
 
 Authors:
 \itemize{
-  \item Ellen Li \email{eli17@uw.edu} (\href{https://orcid.org/0000-0001-5545-7364}{ORCID})
+  \item Ellen Li \email{ellenlii07@gmail.com} (\href{https://orcid.org/0000-0001-5545-7364}{ORCID})
 }
 
 }

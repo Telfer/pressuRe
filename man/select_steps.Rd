@@ -6,11 +6,9 @@
 \usage{
 select_steps(
   pressure_data,
-  threshold_R = 10,
-  threshold_L = 10,
+  threshold = 20,
   min_frames = 10,
-  steps_Rn = 5,
-  steps_Ln = 5,
+  n_steps = 5,
   skip = 2
 )
 }
@@ -18,17 +16,11 @@ select_steps(
 \item{pressure_data}{List. First item should be a 3D array covering each
 timepoint of the measurement. z dimension represents time.}
 
-\item{threshold_R}{Numeric. Threshold force to define start and end of step}
-
-\item{threshold_L}{Numeric. Threshold force to define start and end of step}
+\item{threshold}{Numeric. Threshold force to define start and end of step}
 
 \item{min_frames}{Numeric. Minimum number of frames that need to be in step}
 
-\item{steps_Rn}{Numeric. Target number of steps for right foot. User will be
-asked to keep selected steps until this target is reached or they run out of
-candidate steps}
-
-\item{steps_Ln}{Numeric. Target number of steps for left foot. User will be
+\item{n_steps}{Numeric. Target number of steps/cycles. User will be
 asked to keep selected steps until this target is reached or they run out of
 candidate steps}
 

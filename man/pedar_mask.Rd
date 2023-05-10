@@ -49,7 +49,7 @@ Add a Pedar mask template using 3 in current literature
 \dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 pedar_data <- system.file("extdata", "pedar_example.asc", package = "pressuRe")
 pressure_data <- load_pedar(pedar_data)
-pressure_data <- pedar_mask(pressure_data, "mask1")
+pressure_data <- pedar_mask(pressure_data, "mask3")
 \dontshow{\}) # examplesIf}
 }
 \author{

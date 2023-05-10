@@ -445,13 +445,9 @@ pressure_interp <- function(pressure_data, interp_to) {
 #' @description Select steps, usually from insole data, and format for analysis
 #' @param pressure_data List. First item should be a 3D array covering each
 #' timepoint of the measurement. z dimension represents time.
-#' @param threshold_R Numeric. Threshold force to define start and end of step
-#' @param threshold_L Numeric. Threshold force to define start and end of step
+#' @param threshold Numeric. Threshold force to define start and end of step
 #' @param min_frames Numeric. Minimum number of frames that need to be in step
-#' @param steps_Rn Numeric. Target number of steps for right foot. User will be
-#' asked to keep selected steps until this target is reached or they run out of
-#' candidate steps
-#' @param steps_Ln Numeric. Target number of steps for left foot. User will be
+#' @param n_steps Numeric. Target number of steps/cycles. User will be
 #' asked to keep selected steps until this target is reached or they run out of
 #' candidate steps
 #' @param skip Numeric. Usually the first few steps of a trial are accelerating
@@ -476,9 +472,8 @@ pressure_interp <- function(pressure_data, interp_to) {
 #' @importFrom utils menu
 #' @export
 
-select_steps <- function (pressure_data, threshold_R = 10,
-                          threshold_L = 10, min_frames = 10,
-                          steps_Rn = 5, steps_Ln = 5, skip = 2) {
+select_steps <- function (pressure_data, threshold = 20, min_frames = 10,
+                          n_steps = 5, skip = 2) {
   # set up global variables
   frame <- NULL
 
@@ -490,142 +485,33 @@ select_steps <- function (pressure_data, threshold_R = 10,
   if (!(pressure_data[[2]] == "pedar" || pressure_data[[2]] == "tekscan"))
     stop("data should be from pedar or f-scan")
 
-  # make force vectors
-  force_R <- force_pedar(pressure_data)[,1]
-  force_L <- force_pedar(pressure_data)[,2]
+  # get force df
+  if (pressure_data[[2]] == "pedar") {
+    te_R <- threshold_event(pressure_data, threshold[1], min_frames, "RIGHT")
+    te_L <- threshold_event(pressure_data, threshold[length(threshold)],
+                            min_frames, "LEFT")
+    df_R <- te_R[[1]]
+    df_L <- te_L[[1]]
+    FS_events_R <- te_R[[2]]
+    FO_events_R <- te_R[[3]]
+    FS_events_L <- te_L[[2]]
+    FO_events_L <- te_L[[3]]
 
-  # Adjust thresholds to avoid errors
-  threshold_R <- threshold_R + 0.01
-  threshold_L <- threshold_L + 0.01
+    # approve steps
+    events_R <- approve_step(df_R, FS_events_R, FO_events_R, n_steps, "RIGHT")
+    events_L <- approve_step(df_L, FS_events_L, FO_events_L, n_steps, "LEFT")
 
-  # throw error if threshold is less than min of trial
-  min_R <- min(force_R)
-  min_L <- min(force_L)
-  if (min_R > threshold_R | min_L > threshold_L)
-    stop("threshold is less than minimum force recorded in trial")
+    # event df
+    event_df <- rbind(events_R, events_L)
+  } else {
+    thr_ev <- threshold_event(pressure_data, threshold[1], min_frames)
+    df <- thr_ev[[1]]
+    FS_events <- thr_ev[[2]]
+    FO_events <- thr_ev[[3]]
 
-  # Get events
-  FS_events_R <- which(force_R[-length(force_R)] < threshold_R &
-                         force_R[-1] > threshold_R) + 1
-  FO_events_R <- which(force_R[-length(force_R)] > threshold_R &
-                         force_R[-1] < threshold_R) + 1
-  FS_events_L <- which(force_L[-length(force_L)] < threshold_L &
-                         force_L[-1] > threshold_L) + 1
-  FO_events_L <- which(force_L[-length(force_L)] > threshold_L &
-                         force_L[-1] < threshold_L) + 1
-
-  # Create steps
-  ## Adjust events to ensure stance phase is used
-  if (FO_events_R[1] < FS_events_R[1]) {
-    FO_events_R <- FO_events_R[-1]
+    # approve steps
+    event_df <- approve_step(df, FS_events, FO_events)
   }
-  if ((length(FS_events_R)) > (length(FO_events_R))) {
-    FS_events_R <- FS_events_R[-length(FS_events_R)]
-  }
-  if (FO_events_L[1] < FS_events_L[1]) {
-    FO_events_L <- FO_events_L[-1]
-  }
-  if (length(FS_events_L) > length(FO_events_L)) {
-    FS_events_L <- FS_events_L[-length(FS_events_L)]
-  }
-
-  # Make steps into data frame
-  ## right
-  df_R <- data.frame(step = integer(), frame = integer(), force = double())
-  for (i in 1:length(FS_events_R)) {
-    if (FO_events_R[i] - FS_events_R[i] > min_frames) {
-      force_step <- force_R[FS_events_R[i]:FO_events_R[i]]
-      step <- data.frame(step = rep(i, length_out = length(force_step)),
-                         frame = c(1:length(force_step)),
-                         force = force_step)
-      df_R <- rbind(df_R, step)
-    }
-  }
-
-  ## left
-  df_L <- data.frame(step = integer(), frame = integer(), force = double())
-  for (i in 1:length(FS_events_L)) {
-    if (FO_events_L[i] - FS_events_L[i] > min_frames) {
-      force_step <- force_L[FS_events_L[i]:FO_events_L[i]]
-      step <- data.frame(step = rep(i, length_out = length(force_step)),
-                         frame = c(1:length(force_step)),
-                         force = force_step)
-      df_L <- rbind(df_L, step)
-    }
-  }
-
-  # Approve or discard steps
-  ## right
-  include_stps_R <- c()
-  for (stp in 1:length(FS_events_R)) {
-    # highlighted step df
-    df1 <- df_R %>% filter(step %in% stp)
-
-    # plot
-    g <- ggplot()
-    g <- g + geom_line(data = df_R, aes(x = frame, y = force,
-                                 group = step),
-                       linewidth = 1.5, color = "grey")
-    g <- g + geom_line(data = df1, aes(x = frame, y = force),
-                       linewidth = 1.5, color = "red")
-    g <- g + xlab("Frame no") + ylab("Force (N)")
-    g <- g + ggtitle(paste0("Right step ", stp))
-    print(g)
-    Sys.sleep(1.5)
-
-    # get user to approve or reject step
-    resp <- menu(c("Y", "N", "EXIT"),
-                 title = "Do you want to keep (Y) or discard (N) this step?")
-    if (resp == 3) {
-      break
-    } else {
-      include_stps_R <- c(include_stps_R, resp)
-    }
-
-    # check if number of steps has been reached
-    if (sum(include_stps_R == 1) >= steps_Rn) {break}
-  }
-
-  # Approve or discard steps
-  ## left
-  include_stps_L <- c()
-  for (stp in 1:length(FS_events_L)) {
-    # highlighted step df
-    df1 <- df_L %>% filter(step %in% stp)
-
-    # plot
-    g <- ggplot()
-    g <- g + geom_line(data = df_L, aes(x = frame, y = force,
-                                        group = step),
-                       linewidth = 1.5, color = "grey")
-    g <- g + geom_line(data = df1, aes(x = frame, y = force),
-                       linewidth = 1.5, color = "red")
-    g <- g + xlab("Frame no") + ylab("Force (N)")
-    g <- g + ggtitle(paste0("Left step ", stp))
-    print(g)
-    Sys.sleep(1.5)
-
-    # get user to approve or reject step
-    resp <- menu(c("Y", "N", "ExIT"),
-                 title = "Do you want to keep (Y) or discard (N) this step?")
-    if (resp == 3){
-      break
-    }else{
-      include_stps_L <- c(include_stps_L, resp)
-    }
-    # check if number of steps has been reached
-    if (sum(include_stps_L == 1) >= steps_Ln) {break}
-  }
-
-  # make events df
-  len_R <- length(which(include_stps_R == 1))
-  len_L <- length(which(include_stps_L == 1))
-  event_df <- data.frame(side = c(rep("RIGHT", length.out = len_R),
-                                  rep("LEFT", length.out = len_L)),
-                         FON = c(FS_events_R[which(include_stps_R == 1)],
-                                 FS_events_L[which(include_stps_L == 1)]),
-                         FOFF = c(FO_events_R[which(include_stps_R == 1)],
-                                  FO_events_L[which(include_stps_L == 1)]))
 
   # add events to pressure data
   pressure_data[[6]] <- event_df
@@ -788,7 +674,7 @@ whole_pressure_curve <- function(pressure_data, variable, side, threshold = 10,
 
       # find active area for each frame and store in vector
       for (i in 1:dim(pressure_data[[1]])[3]) {
-        values[i] <- (sum(pressure_data[[1]][, , i] > 0)) * sen_size
+        values[i] <- (sum(pressure_data[[1]][, , i] > 0)) * sen_size * 10000
       }
     }
     variable_units <- "contact area (cm2)"
@@ -920,7 +806,7 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
   if (variable == "frame") {
     if(frame <= dim(pressure_data[[1]])[3]){
       mat <- pressure_data[[1]][,, frame]
-    }else{
+    } else {
       stop("The frame selected is greater that the number of frames available")
     }
   }
@@ -1506,7 +1392,7 @@ create_mask <- function(pressure_data, n_verts = 4, n_masks = 1,
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
-#' pressure_data <- edit_mask(pressure_data, n_edit, threshold = 0.002,
+#' pressure_data <- edit_mask(pressure_data, n_edit = 1, threshold = 0.002,
 #'   edit_list = seq(1,length(pressure_data[[5]])), image = "max")
 #' @importFrom grDevices rainbow
 #' @export
@@ -1624,7 +1510,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @examplesIf interactive()
 #' pedar_data <- system.file("extdata", "pedar_example.asc", package = "pressuRe")
 #' pressure_data <- load_pedar(pedar_data)
-#' pressure_data <- pedar_mask(pressure_data, "mask1")
+#' pressure_data <- pedar_mask(pressure_data, "mask3")
 #' @importFrom sf st_union st_difference st_bbox st_point
 #' @importFrom grDevices graphics.off
 #' @export
@@ -2150,7 +2036,7 @@ dpli <- function(pressure_data, n_bins) {
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- automask(pressure_data)
-#' mask_analysis(pressure_data, FALSE, variable = "press_peak")
+#' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
 #' @importFrom sf st_intersects st_geometry st_area
 #' @importFrom pracma trapz
 #' @export
@@ -2160,7 +2046,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
                           pressure_units = "kPa", area_units = "cm2") {
   # set global variables
   pedar_insole_type <- sens_poly <- act_sens <- area <- max_df <-
-    mask_sides <- overlap_list <- NULL
+    mask_sides <- overlap_list <- time <- side <- cycle <- NULL
 
   # masks
   masks <- pressure_data[[5]]
@@ -2227,20 +2113,11 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   }
 
   # create blank output dataframes
-  ## storage matrices
-  output_df <- data.frame(pressure_variable = factor(), mask_name = factor(),
+  output_df <- data.frame(time = double(), cycle = integer(), side = factor(),
+                          pressure_variable = factor(), mask_name = factor(),
                           value = double())
-  if (pressure_data[[2]] == "pedar") {
-    output_df <- cbind(side = factor(), output_df)
-  }
-  if (length(events) > 0) {
-    output_df <- cbind(cycle = integer(), output_df)
-  }
-  if (str_ends(variable, "_ts")) {
-    output_df <- cbind(time = double(), output_df)
-  }
 
-  ## Analyse regions for maximum value of any sensor within region during trial
+  # Analyse regions for maximum value of any sensor within region during trial
   if (variable == "press_peak_sensor") {
     output_df <- pressure_peak(pressure_data, sens_mask_df, mask_sides,
                                output_df, pressure_units)
@@ -2317,29 +2194,15 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   }
 
   # Analyse regions for force time integral
-  if (variable == "force_time_integral") {
-    time_seq <- seq(0, by = pressure_data[[4]],
-                    length.out = dim(pressure_data[[1]])[3])
-    for (mask in seq_along(masks)) {
-      force <- rep(NA, length.out = dim(pressure_data[[1]])[3])
-      for (i in 1:(dim(pressure_data[[1]])[3])) {
-        P <- c(pressure_data[[1]][, , i])
-        P <- P[act_sens] * sensor_area * 1000
-        force[i] <- sum(P * sens_mask_df[, mask])
-      }
-      output_mat[, mask] <- pracma::trapz(time_seq, force)
-    }
-    if (area_units == "cm2") {output_mat <- output_mat * 1e-04}
-    if (area_units == "mm2") {output_mat <- output_mat * 1e-06}
+  if (variable == "fti") {
+    output_df <- fti(pressure_data, sens_mask_df, mask_sides,
+                     output_df)
   }
 
   # Analyse regions for maximum force during the trial
   if (variable == "force_peak") {
-    P <- c(footprint(pressure_data))
-    P <- P[act_sens] * sensor_area * 1000
-    for (mask in seq_along(masks)) {
-      output_mat[, mask] <- sum(P * sens_mask_df[, mask])
-    }
+    output_df <- force_peak(pressure_data, sens_mask_df, mask_sides,
+                            output_df)
   }
 
   # Analyse regions for force throughout the trial (outputs vector)
@@ -2352,6 +2215,11 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
       }
     }
   }
+
+  # adjust df
+  if (!str_ends(variable, "_ts")) {output_df <- subset(output_df, select = -c(time))}
+  if (pressure_data[[2]] != "pedar") {output_df <- subset(output_df, select = -c(side))}
+  if (length(events) == 0) {output_df <- subset(output_df, select = -c(cycle))}
 
   # return
   return(output_df)
@@ -3216,8 +3084,8 @@ pedar_polygon <- function(pressure_data, sensel_list, foot_side){
                                    frame = NA, output = "sf")
 
   # Left foot sensels are stored as 1:99, right foot senses are 101:99
-  if (foot_side == "RIGHT"){
-    sensel_list <- sensel_list - 99
+  if (foot_side == "LEFT"){
+    sensel_list <- sensel_list + 99
   }
 
   sensel_polygon <- polygon_list[[sensel_list[1]]]
@@ -3250,51 +3118,51 @@ pressure_peak <- function(pressure_data, sens_mask_df,
   # output_names
   col_names <- colnames(output_df)
 
-  # single step data
-  if (pressure_data[[2]] != "pedar" & length(events) == 0) {
-    P <- c(footprint(pressure_data))
-    act_sens <- which(footprint(pressure_data, "max") > 0)
-    P <- P[act_sens]
-    for (mask in seq_along(pressure_data[[5]])) {
-      pv <- "press_peak_sensor"
-      mn <- names(pressure_data[[5]])[mask]
-      val <- max(P[which(sens_mask_df[, mask] > 0)])
-      output_df <- rbind(output_df, c(pv, mn, val))
-    }
+  # pressure variable
+  pv <- "press_peak_sensor"
+
+  # side
+  time <- side <- NA
+
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
   }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
 
-  # multi step/cycle data
-  if (length(events) > 0) {
-    if (pressure_data[[2]] == "pedar") {
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        P <- c(footprint(pressure_data_))
-        for (mask in seq_along(pressure_data[[5]])) {
-          mn <- names(pressure_data[[5]])[mask]
-          side <- mask_sides[mask]
-          pv <- "press_peak_sensor"
-          val <- max(P[which(sens_mask_df[, mask] > 0)])
-          output_df <- rbind(output_df, c(cyc, side, pv, mn, val))
-        }
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      P <- c(footprint(pressure_data_))
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+      P <- P[act_sens]
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
+      P <- c(footprint(pressure_data_))
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        val <- max(P[which(sens_mask_df[, mask] > 0)])
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
       }
-    } else {
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        P <- c(footprint(pressure_data_))
-        for (mask in seq_along(pressure_data[[5]])) {
-          mn <- names(pressure_data[[5]])[mask]
-          pv <- "press_peak_sensor"
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
           val <- max(P[which(sens_mask_df[, mask] > 0)])
-
-          output_df <- rbind(output_df, c(cyc, pv, mn, val))
+          side <- mask_sides[mask]
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
         }
       }
     }
@@ -3321,73 +3189,68 @@ pressure_mean <- function(pressure_data, sens_mask_df, mask_sides,
   # global variables
   act_sens <- masks <- NULL
 
-  # events df
+  # events
   events <- pressure_data[[6]]
 
   # output_names
   col_names <- colnames(output_df)
 
-  # single step data
-  if (pressure_data[[2]] != "pedar" & length(events) == 0) {
-    sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-    P <- c(footprint(pressure_data))
-    act_sens <- which(footprint(pressure_data, "max") > 0)
-    P <- P[act_sens] * sensor_area * 1000
-    CA <- rep(sensor_area, length.out = length(P))
-    for (mask in seq_along(pressure_data[[5]])) {
-      pv <- "press_peak_mask"
-      mn <- names(pressure_data[[5]])[mask]
-      val <- max(P[which(sens_mask_df[, mask] > 0)])
-      force <- sum(P * sens_mask_df[, mask])
-      contact_area <- sum(CA * sens_mask_df[, mask])
-      val <- force / contact_area / 1000
-      output_df <- rbind(output_df, c(pv, mn, val))
-    }
-  }
+  # pressure variable
+  pv <- "press_peak_mask"
 
-  # multi step/cycle data
-  if (length(events) > 0) {
-    if (pressure_data[[2]] == "pedar") {
+  # side
+  time <- side <- NA
+
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
+      P <- c(footprint(pressure_data_))
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+      P <- P[act_sens] * sensor_area * 1000
+      CA <- rep(sensor_area, length.out = length(P))
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       0.001)
       pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        P <- c(footprint(pressure_data_)) * pedarSensorAreas
-        for (mask in seq_along(pressure_data[[5]])) {
-          pv <- "press_peak_mask"
-          mn <- names(pressure_data[[5]])[mask]
+      P <- c(footprint(pressure_data_)) * pedarSensorAreas
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        force <- sum(P * sens_mask_df[, mask])
+        contact_area <- sum(CA * sens_mask_df[, mask])
+        val <- force / contact_area / 1000
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      }
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
+          val <- max(P[which(sens_mask_df[, mask] > 0)])
           side <- mask_sides[mask]
           force <- sum(P * sens_mask_df[, mask])
           contact_area <- sum(pedarSensorAreas * sens_mask_df[, mask])
           val <- force / contact_area
-          output_df <- rbind(output_df, c(cyc, side, pv, mn, val))
-        }
-      }
-    } else {
-      for (cycle_n in 1:nrow(events)) {
-        sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        P <- c(footprint(pressure_data_))
-        act_sens <- which(footprint(pressure_data, "max") > 0)
-        P <- P[act_sens] * sensor_area * 1000
-        CA <- rep(sensor_area, length.out = length(P))
-        for (mask in seq_along(pressure_data[[5]])) {
-          pv <- "press_peak_mask"
-          mn <- names(pressure_data[[5]])[mask]
-          force <- sum(P * sens_mask_df[, mask])
-          contact_area <- sum(CA * sens_mask_df[, mask])
-          val <- force / contact_area / 1000
-          output_df <- rbind(output_df, c(cyc, pv, mn, val))
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
         }
       }
     }
@@ -3413,7 +3276,7 @@ contact_area <- function(pressure_data, sens_mask_df, mask_sides,
   # global variables
   act_sens <- masks <- NULL
 
-  # events df
+  # events
   events <- pressure_data[[6]]
 
   # output_names
@@ -3422,55 +3285,52 @@ contact_area <- function(pressure_data, sens_mask_df, mask_sides,
   # pressure variable
   pv <- "contact_area"
 
-  # single step data
-  if (pressure_data[[2]] != "pedar" & length(events) == 0) {
-    sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-    act_sens <- which(footprint(pressure_data, "max") > 0)
-    CA <- rep(sensor_area, length.out = length(act_sens))
-    for (mask in seq_along(pressure_data[[5]])) {
-      mn <- names(pressure_data[[5]])[mask]
-      val <- sum(CA * sens_mask_df[, mask])
-      output_df <- rbind(output_df, c(pv, mn, val))
-    }
-  }
+  # side
+  time <- side <- NA
 
-  # multi step/cycle data
-  if (length(events) > 0) {
-    if (pressure_data[[2]] == "pedar") {
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
+      act_sens <- which(footprint(pressure_data, "max") > 0)
+      CA <- rep(sensor_area, length.out = length(act_sens))
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-6)
       pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        CA <- (c(footprint(pressure_data_)) > 0) * pedarSensorAreas
-        for (mask in seq_along(pressure_data[[5]])) {
-          mn <- names(pressure_data[[5]])[mask]
-          side <- mask_sides[mask]
-          val <- sum(CA * sens_mask_df[, mask])
-          output_df <- rbind(output_df, c(cyc, side, pv, mn, val))
-        }
+      CA2 <- (c(footprint(pressure_data_)) > 0) * pedarSensorAreas
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        val <- sum(CA * sens_mask_df[, mask])
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
       }
-    } else {
-      for (cycle_n in 1:nrow(events)) {
-        sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        P <- c(footprint(pressure_data_))
-        act_sens <- which(footprint(pressure_data, "max") > 0)
-        P <- P[act_sens] * sensor_area * 1000
-        CA <- rep(sensor_area, length.out = length(P))
-        for (mask in seq_along(pressure_data[[5]])) {
-          mn <- names(pressure_data[[5]])[mask]
-          val <- sum(CA * sens_mask_df[, mask])
-          output_df <- rbind(output_df, c(cyc, pv, mn, val))
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
+          side <- mask_sides[mask]
+          val <- sum(CA2 * sens_mask_df[, mask])
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
         }
       }
     }
@@ -3507,64 +3367,61 @@ pti_1 <- function(pressure_data, sens_mask_df, mask_sides,
   # pressure variable
   pv <- "pti_novel"
 
-  # single step data
-  if (pressure_data[[2]] != "pedar" & length(events) == 0) {
-    act_sens <- which(footprint(pressure_data, "max") > 0)
-    for (mask in seq_along(pressure_data[[5]])) {
-      mask_pp <- rep(NA, length.out = dim(pressure_data[[1]])[3])
-      for (i in 1:(dim(pressure_data[[1]])[3])) {
-        P <- c(pressure_data[[1]][, , i])
-        P <- P[act_sens]
-        mask_pp[i] <- max(P[which(sens_mask_df[, mask] > 0)]) *
-          pressure_data[[4]]
-      }
-      mn <- names(pressure_data[[5]])[mask]
-      val <- sum(mask_pp)
-      output_df <- rbind(output_df, c(pv, mn, val))
-    }
-  }
+  # side
+  time <- side <- NA
 
-  # multi step/cycle data
-  if (length(events) > 0) {
-    if (pressure_data[[2]] == "pedar") {
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        for (mask in seq_along(pressure_data[[5]])) {
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      P <- c(footprint(pressure_data_))
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+      P <- P[act_sens]
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
+      P <- c(footprint(pressure_data_))
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        mask_pp <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+        for (i in 1:(dim(pressure_data_[[1]])[3])) {
+          P <- c(pressure_data_[[1]][, , i])
+          P <- P[act_sens]
+          mask_pp[i] <- max(P[which(sens_mask_df[, mask] > 0)]) *
+            pressure_data_[[4]]
+        }
+        val <- sum(mask_pp)
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      }
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
           mask_pp <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
             P <- c(pressure_data_[[1]][, , i])
             mask_pp[i] <- max(P[which(sens_mask_df[, mask] > 0)]) *
-              pressure_data[[4]]
+              pressure_data_[[4]]
           }
-          mn <- names(pressure_data[[5]])[mask]
+          val <- sum(mask_pp)
           side <- mask_sides[mask]
-          val <- sum(mask_pp)
-          output_df <- rbind(output_df, c(cyc, side, pv, mn, val))
-        }
-      }
-    } else {
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        act_sens <- which(footprint(pressure_data_, "max") > 0)
-        for (mask in seq_along(pressure_data[[5]])) {
-          mask_pp <- rep(NA, length.out = dim(pressure_data[[1]])[3])
-          for (i in 1:(dim(pressure_data[[1]])[3])) {
-            P <- c(pressure_data[[1]][, , i])
-            P <- P[act_sens]
-            mask_pp[i] <- max(P[which(sens_mask_df[, mask] > 0)]) *
-              pressure_data[[4]]
-          }
-          mn <- names(pressure_data[[5]])[mask]
-          val <- sum(mask_pp)
-          output_df <- rbind(output_df, c(cyc, pv, mn, val))
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
         }
       }
     }
@@ -3575,8 +3432,6 @@ pti_1 <- function(pressure_data, sens_mask_df, mask_sides,
   output_df$value <- as.numeric(output_df$value)
 
   # units
-  #if (area_units == "cm2") {output_df$value <- output_df$value * 1e4}
-  #if (area_units == "mm2") {output_df$value <- output_df$value * 1e6}
   if (pressure_units == "MPa") {output_df$value <- output_df$value * 0.001}
   if (pressure_units == "Ncm2") {output_df$value <- output_df$value * 0.1}
 
@@ -3603,76 +3458,69 @@ pti_2 <- function(pressure_data, sens_mask_df, mask_sides,
   # pressure variable
   pv <- "pti_Melai"
 
-  # single step data
-  if (pressure_data[[2]] != "pedar" & length(events) == 0) {
-    time_seq <- seq(0, by = pressure_data[[4]],
-                    length.out = dim(pressure_data[[1]])[3])
-    sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-    act_sens <- which(footprint(pressure_data, "max") > 0)
-    for (mask in seq_along(pressure_data[[5]])) {
-      force <- rep(NA, length.out = dim(pressure_data[[1]])[3])
-      for (i in 1:(dim(pressure_data[[1]])[3])) {
-        P <- c(pressure_data[[1]][, , i])
-        P <- P[act_sens] * sensor_area * 1000
-        force[i] <- sum(P * sens_mask_df[, mask])
-      }
-      CA <- rep(sensor_area, length.out = length(act_sens))
-      CA <- sum(CA * sens_mask_df[, mask])
-      val <- pracma::trapz(time_seq, force) / CA / 1000
-      mn <- names(pressure_data[[5]])[mask]
-      output_df <- rbind(output_df, c(pv, mn, val))
-    }
-  }
+  # side
+  time <- side <- NA
 
-  # multi step/cycle data
-  if (length(events) > 0) {
-    if (pressure_data[[2]] == "pedar") {
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      sensor_area <- pressure_data_[[3]][1] * pressure_data_[[3]][2]
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
+      P <- c(footprint(pressure_data_))
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-6)
       pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        time_seq <- seq(0, by = pressure_data[[4]],
-                        length.out = dim(pressure_data_[[1]])[3])
-        for (mask in seq_along(pressure_data[[5]])) {
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+        for (i in 1:(dim(pressure_data_[[1]])[3])) {
+          P <- c(pressure_data_[[1]][, , i])
+          P <- P[act_sens] * sensor_area * 1000
+          force[i] <- sum(P * sens_mask_df[, mask])
+        }
+        CA <- rep(sensor_area, length.out = length(act_sens))
+        CA <- sum(CA * sens_mask_df[, mask])
+        val <- pracma::trapz(seq(0, by = pressure_data_[[4]],
+                                 length.out = dim(pressure_data_[[1]])[3]),
+                             force) / CA / 1000
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      }
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
           force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
             P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
             force[i] <- sum(P * sens_mask_df[, mask]) / 1000
           }
           CA <- sum(pedarSensorAreas * sens_mask_df[, mask])
-          val <- pracma::trapz(time_seq, force) / CA * 1000
+          val <- pracma::trapz(seq(0, by = pressure_data_[[4]],
+                                   length.out = dim(pressure_data_[[1]])[3]),
+                               force) / CA * 1000
           side <- mask_sides[mask]
-          mn <- names(pressure_data[[5]])[mask]
-          output_df <- rbind(output_df, c(cyc, side, pv, mn, val))
-        }
-      }
-    } else {
-      for (cycle_n in 1:nrow(events)) {
-        cyc <- cycle_n
-        cyc_str <- unname(unlist(events[cycle_n, 2]))
-        cyc_end <- unname(unlist(events[cycle_n, 3]))
-        pressure_data_ <- pressure_data
-        pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
-        act_sens <- which(footprint(pressure_data_, "max") > 0)
-        sensor_area <- pressure_data[[3]][1] * pressure_data[[3]][2]
-        for (mask in seq_along(pressure_data[[5]])) {
-          force <- rep(NA, length.out = dim(pressure_data[[1]])[3])
-          for (i in 1:(dim(pressure_data[[1]])[3])) {
-            P <- c(pressure_data[[1]][, , i])
-            P <- P[act_sens] * sensor_area * 1000
-            force[i] <- sum(P * sens_mask_df[, mask])
-          }
-          CA <- rep(sensor_area, length.out = length(act_sens))
-          CA <- sum(CA * sens_mask_df[, mask])
-          val <- pracma::trapz(time_seq, force) / CA / 10000
-          mn <- names(pressure_data[[5]])[mask]
-          output_df <- rbind(output_df, c(cyc, pv, mn, val))
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
         }
       }
     }
@@ -3683,14 +3531,297 @@ pti_2 <- function(pressure_data, sens_mask_df, mask_sides,
   output_df$value <- as.numeric(output_df$value)
 
   # units
-  #if (area_units == "cm2") {output_df$value <- output_df$value * 1e4}
-  #if (area_units == "mm2") {output_df$value <- output_df$value * 1e6}
   if (pressure_units == "MPa") {output_df$value <- output_df$value * 0.001}
   if (pressure_units == "Ncm2") {output_df$value <- output_df$value * 0.1}
 
   # return
   return(output_df)
 }
+
+
+#' @title Force time integral
+#' @description Calculate FTI
+#' @noRd
+
+fti <- function(pressure_data, sens_mask_df, mask_sides,
+                output_df) {
+  # global variables
+  act_sens <- masks <- NULL
+
+  # events df
+  events <- pressure_data[[6]]
+
+  # output_names
+  col_names <- colnames(output_df)
+
+  # pressure variable
+  pv <- "fti"
+
+  # side
+  time <- side <- NA
+
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      sensor_area <- pressure_data_[[3]][1] * pressure_data_[[3]][2]
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
+      P <- c(footprint(pressure_data_))
+      pedar_insole_areas <- pedar_insole_area()
+      pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
+                                      1e-3)
+      pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+        for (i in 1:(dim(pressure_data_[[1]])[3])) {
+          P <- c(pressure_data_[[1]][, , i])
+          P <- P[act_sens] * sensor_area * 1000
+          force[i] <- sum(P * sens_mask_df[, mask])
+        }
+        val <- pracma::trapz(seq(0, by = pressure_data_[[4]],
+                                 length.out = dim(pressure_data_[[1]])[3]),
+                             force)
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      }
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
+          force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+          for (i in 1:(dim(pressure_data_[[1]])[3])) {
+            P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
+            force[i] <- sum(P * sens_mask_df[, mask])
+          }
+          val <- pracma::trapz(seq(0, by = pressure_data_[[4]],
+                                   length.out = dim(pressure_data_[[1]])[3]),
+                               force)
+          side <- mask_sides[mask]
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+        }
+      }
+    }
+  }
+
+  # fix output
+  colnames(output_df) <- col_names
+  output_df$value <- as.numeric(output_df$value)
+
+  # return
+  return(output_df)
+}
+
+
+#' @title Force peak
+#' @description Calculate force peak
+#' @noRd
+
+force_peak <- function(pressure_data, sens_mask_df, mask_sides,
+                       output_df) {
+  # global variables
+  act_sens <- masks <- NULL
+
+  # events df
+  events <- pressure_data[[6]]
+
+  # output_names
+  col_names <- colnames(output_df)
+
+  # pressure variable
+  pv <- "force_peak"
+
+  # side
+  time <- side <- NA
+
+  # process
+  if (length(pressure_data[[6]]) == 0) {
+    n_cycle = 1
+  } else {
+    n_cycle = nrow(pressure_data[[6]])
+  }
+  for (cycle in 1:n_cycle) {
+    # get step data
+    pressure_data_ <- pressure_data
+    if (n_cycle > 1) {
+      cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
+      cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
+      pressure_data_[[1]] <- pressure_data_[[1]][, , c(cyc_str:cyc_end)]
+    }
+
+    # non-pedar data
+    if (pressure_data[[2]] != "pedar") {
+      sensor_area <- pressure_data_[[3]][1] * pressure_data_[[3]][2]
+      act_sens <- which(footprint(pressure_data_, "max") > 0)
+    }
+
+    # pedar data
+    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
+      P <- c(footprint(pressure_data_))
+      pedar_insole_areas <- pedar_insole_area()
+      pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
+                                      1e-3)
+      pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
+    }
+
+    # analysis
+    for (mask in seq_along(pressure_data[[5]])) {
+      mn <- names(pressure_data[[5]])[mask]
+      if (pressure_data[[2]] != "pedar") {
+        force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+        for (i in 1:(dim(pressure_data_[[1]])[3])) {
+          P <- c(pressure_data_[[1]][, , i])
+          P <- P[act_sens] * sensor_area * 1000
+          force[i] <- sum(P * sens_mask_df[, mask])
+        }
+        val <- max(force)
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      }
+      if (pressure_data[[2]] == "pedar") {
+        if (mask_sides[mask] == events[cycle, 1]) {
+          force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
+          for (i in 1:(dim(pressure_data_[[1]])[3])) {
+            P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
+            force[i] <- sum(P * sens_mask_df[, mask])
+          }
+          val <- max(force)
+          side <- mask_sides[mask]
+          output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+        }
+      }
+    }
+  }
+
+  # fix output
+  colnames(output_df) <- col_names
+  output_df$value <- as.numeric(output_df$value)
+
+  # return
+  return(output_df)
+}
+
+
+#' @title threshold event
+#' @description defines threshold based on force value
+#' @noRd
+threshold_event <- function(pressure_data, threshold, min_frames, side) {
+  # make force vector
+  if (pressure_data[[2]] != "pedar") {
+    force <- whole_pressure_curve(pressure_data, "force")
+  } else {
+    if (side == "RIGHT") {force <- force_pedar(pressure_data)[, 1]}
+    if (side == "LEFT") {force <- force_pedar(pressure_data)[, 2]}
+  }
+
+  # Adjust thresholds to avoid errors
+  threshold <- threshold + 0.01
+
+  # throw error if threshold is less than min of trial
+  min_f <- min(force)
+  if (min_f > threshold)
+    stop("threshold is less than minimum force recorded in trial")
+
+  # Get events
+  FS_events <- which(force[-length(force)] < threshold &
+                       force[-1] > threshold) + 1
+  FO_events <- which(force[-length(force)] > threshold &
+                       force[-1] < threshold) + 1
+
+  # Create steps
+  ## Adjust events to ensure stance phase is used
+  if (FO_events[1] < FS_events[1]) {FO_events <- FO_events[-1]}
+  if ((length(FS_events)) > (length(FO_events))) {
+    FS_events <- FS_events[-length(FS_events)]
+  }
+
+  # remove short steps
+  rm_stp <- c()
+  for (i in 1:length(FS_events)) {
+    if (FO_events[i] - FS_events[i] < min_frames) {rm_stp <- c(rm_stp, i)}
+  }
+  FS_events <- FS_events[-rm_stp]
+  FO_events <- FO_events[-rm_stp]
+
+  # Make steps into data frame
+  df <- data.frame(step = integer(), frame = integer(), force = double())
+  for (i in 1:length(FS_events)) {
+    force_step <- force[FS_events[i]:FO_events[i]]
+    step <- data.frame(step = rep(i, length_out = length(force_step)),
+                       frame = c(1:length(force_step)),
+                       force = force_step)
+    df <- rbind(df, step)
+  }
+
+  # return
+  return(list(df, FS_events, FO_events))
+}
+
+
+#' @title approve step
+#' @description asks user to approve step
+#' @noRd
+approve_step <- function(df, on_v, off_v, n_steps, side = "none") {
+  # global variables
+  step <- frame <- NULL
+
+  # Approve or discard steps
+  include_stps <- c()
+  for (stp in 1:length(on_v)) {
+    # highlighted step df
+    df1 <- df %>% filter(step %in% stp)
+
+    # plot
+    g <- ggplot()
+    g <- g + geom_line(data = df, aes(x = frame, y = force, group = step),
+                       linewidth = 1.5, color = "grey")
+    g <- g + geom_line(data = df1, aes(x = frame, y = force),
+                       linewidth = 1.5, color = "red")
+    g <- g + xlab("Frame no") + ylab("Force (N)")
+    g <- g + ggtitle(paste0(side, " ", stp))
+    print(g)
+    Sys.sleep(1.0)
+
+    # get user to approve or reject step
+    resp <- menu(c("Y", "N", "EXIT"),
+                 title = "Do you want to keep (Y) or discard (N) this step?")
+    if (resp == 3) {
+      break
+    } else {
+      include_stps <- c(include_stps, resp)
+    }
+
+    # check if number of steps has been reached
+    if (sum(include_stps == 1) >= n_steps) {break}
+  }
+
+  # make events df
+  len_ <- length(which(include_stps == 1))
+  event_df <- data.frame(side = rep(side, length.out = len_),
+                         FON = on_v[which(include_stps == 1)],
+                         FOFF = off_v[which(include_stps == 1)])
+
+  # return
+  return(event_df)
+}
+
 
 # data
 pedar_insole_area <- function() {

@@ -48,7 +48,7 @@ Allows user to manually adjust mask vertices
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
-pressure_data <- edit_mask(pressure_data, n_edit, threshold = 0.002,
+pressure_data <- edit_mask(pressure_data, n_edit = 1, threshold = 0.002,
   edit_list = seq(1,length(pressure_data[[5]])), image = "max")
 \dontshow{\}) # examplesIf}
 }
