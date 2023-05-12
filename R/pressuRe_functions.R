@@ -1685,18 +1685,16 @@ pedar_mask <- function(pressure_data, mask_type, n_sensors = 1, image = "max",
       point <- sf::st_point(c(sensor_pts[pts,1],sensor_pts[pts,2]))
       for (sensor_idx in 1:198) {
         if (length(st_intersects(sensor_polygons[[sensor_idx]], point)[[1]]) == 1) {
-
           if (sensor_idx > 99) {
             foot_side <- "LEFT"
-            sensor_list <- c(sensor_list, sensor_idx)
+            sensor_list <- c(sensor_list, sensor_idx + 99)
           } else {
             foot_side <- "RIGHT"
-            sensor_list <- c(sensor_list, sensor_idx+99)
+            sensor_list <- c(sensor_list, sensor_idx)
           }
         }
       }
     }
-
 
     if (length(sensor_list) != n_sensors) {
       message("Note: the number of sensors selected is not equal to the number
