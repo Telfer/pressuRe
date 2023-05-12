@@ -3146,7 +3146,8 @@ pressure_peak <- function(pressure_data, sens_mask_df,
 
     # pedar data
     if (pressure_data[[2]] == "pedar" & length(events) > 0) {
-      P <- c(footprint(pressure_data_))
+      P <- footprint(pressure_data_)
+      P <- c(P[1, ], P[2, ])
     }
 
     # analysis
@@ -3229,7 +3230,8 @@ pressure_mean <- function(pressure_data, sens_mask_df, mask_sides,
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       0.001)
       pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
-      P <- c(footprint(pressure_data_)) * pedarSensorAreas
+      P <- footprint(pressure_data_)
+      P <- c(P[1, ], P[2, ]) * pedarSensorAreas
     }
 
     # analysis
@@ -3314,7 +3316,8 @@ contact_area <- function(pressure_data, sens_mask_df, mask_sides,
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-6)
       pedarSensorAreas <- c(pedarSensorAreas, pedarSensorAreas)
-      CA2 <- (c(footprint(pressure_data_)) > 0) * pedarSensorAreas
+      CA2 <- footprint(pressure_data_)
+      CA2 <- (c(CA2[1, ], CA2[2, ]) > 0) * pedarSensorAreas
     }
 
     # analysis
@@ -3385,14 +3388,7 @@ pti_1 <- function(pressure_data, sens_mask_df, mask_sides,
 
     # non-pedar data
     if (pressure_data[[2]] != "pedar") {
-      P <- c(footprint(pressure_data_))
       act_sens <- which(footprint(pressure_data_, "max") > 0)
-      P <- P[act_sens]
-    }
-
-    # pedar data
-    if (pressure_data[[2]] == "pedar" & length(events) > 0) {
-      P <- c(footprint(pressure_data_))
     }
 
     # analysis
@@ -3413,7 +3409,7 @@ pti_1 <- function(pressure_data, sens_mask_df, mask_sides,
         if (mask_sides[mask] == events[cycle, 1]) {
           mask_pp <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
-            P <- c(pressure_data_[[1]][, , i])
+            P <- c(pressure_data_[[1]][1, , i], pressure_data[[1]][2, , i])
             mask_pp[i] <- max(P[which(sens_mask_df[, mask] > 0)]) *
               pressure_data_[[4]]
           }
@@ -3482,7 +3478,6 @@ pti_2 <- function(pressure_data, sens_mask_df, mask_sides,
 
     # pedar data
     if (pressure_data[[2]] == "pedar" & length(events) > 0) {
-      P <- c(footprint(pressure_data_))
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-6)
@@ -3510,7 +3505,8 @@ pti_2 <- function(pressure_data, sens_mask_df, mask_sides,
         if (mask_sides[mask] == events[cycle, 1]) {
           force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
-            P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
+            P <- c(pressure_data[[1]][1, , i], pressure_data[[1]][2, , i])
+            P <- P * pedarSensorAreas
             force[i] <- sum(P * sens_mask_df[, mask]) / 1000
           }
           CA <- sum(pedarSensorAreas * sens_mask_df[, mask])
@@ -3581,7 +3577,6 @@ fti <- function(pressure_data, sens_mask_df, mask_sides,
 
     # pedar data
     if (pressure_data[[2]] == "pedar" & length(events) > 0) {
-      P <- c(footprint(pressure_data_))
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-3)
@@ -3607,7 +3602,8 @@ fti <- function(pressure_data, sens_mask_df, mask_sides,
         if (mask_sides[mask] == events[cycle, 1]) {
           force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
-            P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
+            P <- c(pressure_data[[1]][1, , i], pressure_data[[1]][2, , i])
+            P <- P * pedarSensorAreas
             force[i] <- sum(P * sens_mask_df[, mask])
           }
           val <- pracma::trapz(seq(0, by = pressure_data_[[4]],
@@ -3673,7 +3669,6 @@ force_peak <- function(pressure_data, sens_mask_df, mask_sides,
 
     # pedar data
     if (pressure_data[[2]] == "pedar" & length(events) > 0) {
-      P <- c(footprint(pressure_data_))
       pedar_insole_areas <- pedar_insole_area()
       pedarSensorAreas <- as.vector(pedar_insole_areas[[pressure_data[[3]]]] *
                                       1e-3)
@@ -3697,7 +3692,8 @@ force_peak <- function(pressure_data, sens_mask_df, mask_sides,
         if (mask_sides[mask] == events[cycle, 1]) {
           force <- rep(NA, length.out = dim(pressure_data_[[1]])[3])
           for (i in 1:(dim(pressure_data_[[1]])[3])) {
-            P <- c(pressure_data_[[1]][, , i]) * pedarSensorAreas
+            P <- c(pressure_data[[1]][1, , i], pressure_data[[1]][2, , i])
+            P <- P * pedarSensorAreas
             force[i] <- sum(P * sens_mask_df[, mask])
           }
           val <- max(force)
@@ -3755,8 +3751,10 @@ threshold_event <- function(pressure_data, threshold, min_frames, side) {
   for (i in 1:length(FS_events)) {
     if (FO_events[i] - FS_events[i] < min_frames) {rm_stp <- c(rm_stp, i)}
   }
-  FS_events <- FS_events[-rm_stp]
-  FO_events <- FO_events[-rm_stp]
+  if (length(rm_stp > 0)) {
+    FS_events <- FS_events[-rm_stp]
+    FO_events <- FO_events[-rm_stp]
+  }
 
   # Make steps into data frame
   df <- data.frame(step = integer(), frame = integer(), force = double())
