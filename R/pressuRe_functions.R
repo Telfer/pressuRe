@@ -879,8 +879,8 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
     # max size of df
     fp_sens <- sensor_2_polygon(pressure_data, pressure_image = "all_active",
                                 output = "df")
-    x_lim <- max(fp_sens$x)
-    y_lim <- max(fp_sens$y) + .02
+    x_lims <- c(-0.005, max(fp_sens$x) + 0.005)
+    y_lims <- c(-0.005, max(fp_sens$y) + 0.005)
 
     # footprint
     fp <- footprint(pressure_data, variable = variable, frame)
@@ -934,8 +934,8 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
                         #limits = c(0, max(cor$value)), show.limits = FALSE,
                         limits = c(0, range_max), show.limits = FALSE,
                         name = "Pressure (kPa)")
-  g <- g + scale_x_continuous(expand = c(0, 0), limits = c(0, x_lim))
-  g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.02, y_lim))
+  g <- g + scale_x_continuous(expand = c(0, 0), limits = x_lims)
+  g <- g + scale_y_continuous(expand = c(0, 0), limits = y_lims)
   g <- g + coord_fixed()
 
   # add COP?
@@ -954,10 +954,13 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
 
   # formatting
   g <- g + theme_void()
-  g <- g + theme(panel.background = element_rect(fill = "white",
-                                                 colour = "white"),
-                 legend.box.spacing = unit(legend_spacing, "cm"))
-  if (legend == FALSE) {g <- g + theme(legend.position = "none")}
+  if (legend == FALSE) {
+    g <- g + theme(legend.position = "none")
+    } else {
+    g <- g + theme(panel.background = element_rect(fill = "white",
+                                                   colour = "white"),
+                   legend.box.spacing = unit(legend_spacing, "cm"))
+  }
 
   # display plot if requested
   if (plot == TRUE) {print(g)}
