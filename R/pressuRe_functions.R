@@ -5,7 +5,6 @@
 # automask2: toe line modifications
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
-# fix toe side on mask2 pedar mask
 
 
 # to do (future)
@@ -43,7 +42,7 @@
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' @importFrom stringr str_extract_all str_detect
+#' @importFrom stringr str_extract_all str_detect str_which
 #' @importFrom utils read.fwf read.table
 #' @export
 
@@ -75,7 +74,7 @@ load_emed <- function(pressure_filepath) {
   if (str_detect(time_ln, "ms") == TRUE) {time <- time / 1000}
 
   # determine position breaks
-  breaks <- grep("Page", pressure_raw)
+  breaks <- str_which(pressure_raw, "Page")
 
   # identify and remove any summary frames
   frame_type <- pressure_raw[breaks + 8]
