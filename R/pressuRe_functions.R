@@ -871,8 +871,8 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
     if (step_n == "max") {pedar_var <- "max"; step_no <- NA}
     if (is.numeric(step_n)) {pedar_var <- "step_max"; step_no <- step_n}
     cor <- plot_pedar(pressure_data, pedar_var, step_no, foot_side = "both")
-    x_lim <- max(cor$x)
-    y_lim <- max(cor$y)
+    x_lims <- c(0, max(cor$x))
+    y_lims <- c(0, max(cor$y))
     legend_spacing <- (cor$x[2] - cor$x[1]) * 10
   } else {
     # max size of df
@@ -1271,7 +1271,8 @@ automask <- function(pressure_data, foot_side = "auto", mask_scheme,
 
 create_mask <- function(pressure_data, n_verts = 4, n_masks = 1,
                         threshold = 0.005, plot_existing_mask = TRUE,
-                        image = "max", mask_names = c("default"), preview = TRUE) {
+                        image = "max", mask_names = c("default"),
+                        preview = TRUE) {
   # global variables
   x <- y <- NULL
 
@@ -1518,7 +1519,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @export
 
 pedar_mask <- function(pressure_data, mask_type, n_sensors = 1, image = "max",
-                       mask_name = "custom_mask",plot = TRUE) {
+                       mask_name = "custom_mask", plot = TRUE) {
   # set global variables
   pedar_insole_grid <- x <- y <- id <- position <- NULL
 
@@ -1625,7 +1626,7 @@ pedar_mask <- function(pressure_data, mask_type, n_sensors = 1, image = "max",
                       R_lesser_toes_mask = lesser_toes_R)
 
     pressure_data[[5]] <- mask_list
-  } else if (mask_type == "mask3"){
+  } else if (mask_type == "mask3") {
     # define masks by sensel numbers
     med_rf_L <- pedar_polygon(pressure_data, c(1:2, 6:8, 13:15, 20:22), "LEFT")
     lat_rf_L <-pedar_polygon(pressure_data, c(9:12, 16:19, 23:26), "LEFT")
@@ -1718,12 +1719,11 @@ pedar_mask <- function(pressure_data, mask_type, n_sensors = 1, image = "max",
 
   # plot
   if (plot == TRUE) {
-    if(image == "max"){
+    if (image == "max"){
        plot_masks(pressure_data, image = "max")
-    }else if(is.numeric(image)){
+    } else if (is.numeric(image)) {
       plot_masks(pressure_data, image = image)
     }
-
   }
 
   # return
@@ -2013,6 +2013,7 @@ dpli <- function(pressure_data, n_bins) {
   # return
   return(dpli)
 }
+
 
 # =============================================================================
 
@@ -3046,12 +3047,12 @@ plot_masks <- function(pressure_data,
     g <- plot_pressure(pressure_data, image, plot = FALSE)
     g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
     g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
-  }else{
-    if(image == "max"){
+  } else {
+    if (image == "max"){
       g <- plot_pressure(pressure_data, variable = "max", plot = FALSE)
-    }else if (is.numeric(image)){
+    } else if (is.numeric(image)){
       g <- plot_pressure(pressure_data, frame = image, plot = FALSE)
-    }else{
+    } else {
       stop("The variable image is invalid")
     }
   }
