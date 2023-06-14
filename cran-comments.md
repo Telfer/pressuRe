@@ -1,18 +1,6 @@
-## Resubmission
-This is a resubmission. In this version I have:
-
-* Added references to the description field
-
-* removed extra spaces from description field
-
-* print() statements within functions have been removed or replaced with message()
-
-
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
-
-* This is a new release.
 
 
 * checking installed package size ... NOTE
