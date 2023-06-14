@@ -1073,7 +1073,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' @export
 
 automask <- function(pressure_data, foot_side = "auto", mask_scheme,
-                     plot = FALSE) {
+                     plot = TRUE) {
   # check data isn't from pedar
   if (pressure_data[[2]] == "pedar")
     stop("automask doesn't work with pedar data")
