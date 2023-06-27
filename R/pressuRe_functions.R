@@ -167,7 +167,7 @@ load_emed <- function(pressure_filepath) {
 #' @title Load pedar data
 #' @description Imports and formats .asc files collected on pedar system and
 #'    exported from Novel software
-#' @param pressure_filepath String. Filepath pointing to emed pressure file
+#' @param pressure_filepath String. Filepath pointing to pedar pressure file
 #' @return A list with information about the pressure data.
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -222,6 +222,58 @@ load_pedar <- function(pressure_filepath) {
   # return
   return(list(pressure_array = pressure_array, pressure_system = "pedar",
               sens_size = insole_type, time = time, masks = NULL,
+              events = NULL))
+}
+
+
+# =============================================================================
+
+#' @title Load pliance data
+#' @description Imports and formats .asc files collected on pliance system and
+#'    exported from Novel software
+#' @param pressure_filepath String. Filepath pointing to pliance pressure file
+#' @return A list with information about the pressure data.
+#' \itemize{
+#'   \item pressure_array. 3D array covering each timepoint of the measurement.
+#'            z dimension represents time
+#'   \item pressure_system. String defining pressure system
+#'   \item sens_size. String with sensor type
+#'   \item time. Numeric value for time between measurements
+#'   \item masks. List
+#'   \item events. List
+#'  }
+#' @examples
+#' pliance_data <- system.file("extdata", "pliance_test.asc", package = "pressuRe")
+#' pressure_data <- load_pliance(pliance_data)
+#' @importFrom stringr str_split str_trim
+#' @export
+
+load_pliance <- function(pressure_filepath) {
+  # check parameters
+  ## file exists
+  if (file.exists(pressure_filepath) == FALSE)
+    stop("file does not exist")
+
+  ## extension is correct
+  if (str_split(basename(pressure_filepath), "\\.")[[1]][2] != "asc")
+    stop("incorrect file extension, expected .asc")
+
+  # Read unformatted emed data
+  pressure_raw <- readLines(pressure_filepath, warn = FALSE)
+
+  # capture frequency
+  freq_line <- which(grepl("scanning rate", pressure_raw, useBytes = TRUE))[1]
+  freq <- as.numeric(str_split(pressure_raw[freq_line], "\\[Hz\\]\\: ")[[1]][2])
+  time <- 1 / freq
+
+  # pressure array
+
+  # sensor coords
+  sensor_array_line <- which(grepl("sensor", pressure_raw, useBytes = TRUE))[1]
+
+  # return
+  return(list(pressure_array = pressure_array, pressure_system = "pliance",
+              sens_size = sensor_array, time = time, masks = NULL,
               events = NULL))
 }
 
@@ -848,8 +900,8 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 #' pressure_data <- load_emed(emed_data)
 #' plot_pressure(pressure_data, variable = "max", plot_COP = FALSE)
 #' plot_pressure(pressure_data, variable = "frame", frame = 20,
-#'               plot_colors = "custom", break_values = c(100, 200, 300, 750),
-#'               break_colors = c("blue", "green", "yellow", "red", "pink"))
+#'               plot_colors = "custom", break_values = c(100, 200, 300),
+#'               break_colors = c("light blue", "light green", "yellow", "pink"))
 #' @importFrom ggplot2 ggplot aes geom_raster geom_polygon scale_fill_manual
 #' theme geom_point element_rect binned_scale unit
 #' @importFrom scales manual_pal
@@ -1513,7 +1565,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @examplesIf interactive()
 #' pedar_data <- system.file("extdata", "pedar_example.asc", package = "pressuRe")
 #' pressure_data <- load_pedar(pedar_data)
-#' pressure_data <- pedar_mask(pressure_data, "mask3")
+#' pressure_data <- pedar_mask(pressure_data, "custom", 6)
 #' @importFrom sf st_union st_difference st_bbox st_point
 #' @importFrom grDevices graphics.off
 #' @export
