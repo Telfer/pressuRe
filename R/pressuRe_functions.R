@@ -12,7 +12,6 @@
 # create masks for iscan during startup
 # CPEI manual edit to be built into function
 # cop for pedar
-# add support for pliance
 
 # data list:
 ## Array. pressure data
@@ -21,6 +20,7 @@
 ## Numeric. Single number time between samples
 ## List. Mask list
 ## Data frame. Events (for example, to define start/end of individual steps for insole data)
+## Data frame. Sensor polygon coordinates
 
 
 # =============================================================================
@@ -267,14 +267,27 @@ load_pliance <- function(pressure_filepath) {
   time <- 1 / freq
 
   # pressure array
+  breaks <- which(grepl("time\\[", pressure_raw, useBytes = TRUE))
+  y <- pressure_raw[(breaks[1] + 1):(breaks[2] - 2)]
+  ## remove MVP and MPP lines if present
+  y <- y[-(which(str_detect(y, "MVP")))]
+  y <- y[-(which(str_detect(y, "MPP")))]
+  pressure_array <- as.matrix(read.table(textConnection(y), sep = ""))
 
   # sensor coords
-  sensor_array_line <- which(grepl("sensor", pressure_raw, useBytes = TRUE))[1]
+  sensor_array_line <- which(grepl("corner", pressure_raw, useBytes = TRUE))[1]
+  sensor_array <- pressure_raw[(sensor_array_line + 1):(sensor_array_line + 8)]
+  sensor_array <- read.table(textConnection(sensor_array), sep = "")
+  sensor_array <- t(sensor_array[, 2:ncol(sensor_array)])
+  sens_array <- sensor_2_polygon2(sensor_array)
+
+  # sensor areas
+  sens_areas <- sensor_area(sens_array)
 
   # return
   return(list(pressure_array = pressure_array, pressure_system = "pliance",
-              sens_size = sensor_array, time = time, masks = NULL,
-              events = NULL))
+              sens_size = sens_areas, time = time, masks = NULL,
+              events = NULL, sens_array = sens_array))
 }
 
 
@@ -2591,6 +2604,38 @@ sensor_2_polygon <- function(pressure_data, pressure_image = "all_active",
   # return
   if (output == "sf") {return(sens_polygons)}
   if (output == "df") {return(id_df)}
+}
+
+sensor_2_polygon2 <- function(sensor_array) {
+  # empty df
+  id_df <- data.frame(x = double(),
+                      y = double(),
+                      z = integer())
+
+  # make into identity df
+  for (i in 1:nrow(sensor_array)) {
+    mat <- matrix(c(sensor_array[i, ], sensor_array[i, c(1, 2)]), 5, 2, byrow = TRUE)
+    mat_df <- data.frame(mat)
+    id <- rep(i, length.out = nrow(mat_df))
+    mat_df <- cbind(mat_df, id)
+    colnames(mat_df) <- c("x", "y", "id")
+    id_df <- rbind(id_df, mat_df)
+  }
+
+  # return
+  return(id_df)
+}
+
+sensor_area <- function(sensor_df) {
+  # number of sensors
+  n_sensors <- unique(sensor_df[, 3])
+
+  # get areas
+  areas <- rep(NA, length(n_sensors))
+  for (sens in seq_along(n_sensors)) {
+    sens_mat <- as.matrix(sensor_df %>% filter(id == 1))[, c(1, 2)]
+    areas[sens] <- st_area(st_polygon(list(sens_mat)))
+  }
 }
 
 #' @title pedar force
