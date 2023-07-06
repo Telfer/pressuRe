@@ -45,6 +45,8 @@ List. Mask(s) are added to pressure data variable
   \item time. Numeric value for time between measurements
   \item masks. List
   \item events. List
+  \item sensor_polygons. Data frame with corners of sensors
+  \item max_matrix Matrix with maximum image
  }
 }
 \description{
@@ -54,8 +56,6 @@ Allows user to manually define mask region
 \dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
-pressure_data <- create_mask(pressure_data, n_verts = 4, n_masks = 1,
-threshold = 0.005, plot_existing_mask = TRUE,
-image = "max", mask_names = c("default"), preview = TRUE)
+pressure_data <- create_mask(pressure_data, n_verts = 4, n_masks = 1)
 \dontshow{\}) # examplesIf}
 }

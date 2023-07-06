@@ -35,5 +35,7 @@ pressure and area for complete measurement. Useful for checking data
 \examples{
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
+whole_pressure_curve(pressure_data, variable = "peak_pressure", plot = TRUE)
+whole_pressure_curve(pressure_data, variable = "area", plot = TRUE)
 whole_pressure_curve(pressure_data, variable = "force", plot = TRUE)
 }

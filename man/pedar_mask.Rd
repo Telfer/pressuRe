@@ -50,6 +50,7 @@ Add a Pedar mask template using 3 in current literature
 pedar_data <- system.file("extdata", "pedar_example.asc", package = "pressuRe")
 pressure_data <- load_pedar(pedar_data)
 pressure_data <- pedar_mask(pressure_data, "mask3")
+pressure_data <- pedar_mask(pressure_data, "custom", 6)
 \dontshow{\}) # examplesIf}
 }
 \author{

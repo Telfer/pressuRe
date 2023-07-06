@@ -21,6 +21,8 @@ timepoint of the measurement. z dimension represents time.}
   \item time. Numeric value for time between measurements
   \item masks. List
   \item events. List
+  \item sensor_polygons. Data frame with corners of sensors
+  \item max_matrix. Matrix
  }
 }
 \description{

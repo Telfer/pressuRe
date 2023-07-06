@@ -7,7 +7,7 @@
 load_pedar(pressure_filepath)
 }
 \arguments{
-\item{pressure_filepath}{String. Filepath pointing to emed pressure file}
+\item{pressure_filepath}{String. Filepath pointing to pedar pressure file}
 }
 \value{
 A list with information about the pressure data.
@@ -19,6 +19,8 @@ A list with information about the pressure data.
   \item time. Numeric value for time between measurements
   \item masks. List
   \item events. List
+  \item sensor_polygons. Data frame with corners of sensors
+  \item max_matrix Matrix with maximum image
  }
 }
 \description{

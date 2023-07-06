@@ -4,7 +4,7 @@
 \alias{automask}
 \title{automask footprint}
 \usage{
-automask(pressure_data, foot_side = "auto", mask_scheme, plot = FALSE)
+automask(pressure_data, foot_side = "auto", mask_scheme, plot = TRUE)
 }
 \arguments{
 \item{pressure_data}{List. First item is a 3D array covering each timepoint

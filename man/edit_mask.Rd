@@ -38,6 +38,8 @@ List. Edited mask is added to the pressure data variable
   \item time. Numeric value for time between measurements
   \item masks. List
   \item events. List
+  \item sensor_polygons. Data frame with corners of sensors
+  \item max_matrix Matrix with maximum image
  }
 }
 \description{

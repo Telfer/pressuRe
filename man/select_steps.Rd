@@ -6,7 +6,7 @@
 \usage{
 select_steps(
   pressure_data,
-  threshold = 20,
+  threshold = "auto",
   min_frames = 10,
   n_steps = 5,
   skip = 2
@@ -16,7 +16,8 @@ select_steps(
 \item{pressure_data}{List. First item should be a 3D array covering each
 timepoint of the measurement. z dimension represents time.}
 
-\item{threshold}{Numeric. Threshold force to define start and end of step}
+\item{threshold}{Numeric. Threshold force to define start and end of step.
+If "auto", function will set threshold at minimum force in trial + 10N}
 
 \item{min_frames}{Numeric. Minimum number of frames that need to be in step}
 
@@ -36,6 +37,8 @@ and not representative of steady state walking so this removes them}
   \item time. Numeric value for time between measurements
   \item masks. List
   \item events. List
+  \item sensor_polygons. Data frame with corners of sensors
+  \item max_matrix. Matrix
   }
 }
 \description{
