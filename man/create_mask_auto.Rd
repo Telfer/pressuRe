@@ -2,7 +2,7 @@
 % Please edit documentation in R/pressuRe_functions.R
 \name{create_mask_auto}
 \alias{create_mask_auto}
-\title{automask footprint}
+\title{Automatically mask pressure footprint}
 \usage{
 create_mask_auto(
   pressure_data,
@@ -15,17 +15,18 @@ create_mask_auto(
 \item{pressure_data}{List. First item is a 3D array covering each timepoint
 of the measurement. z dimension represents time}
 
-\item{masking_scheme}{String. "automask_simple", "automask", "pedar_mask1",
-"pedar_mask2", "pedar_mask3".
-"simple_automask"
-"automask"
+\item{masking_scheme}{String. "automask_simple", "automask_novel",
+"pedar_mask1", "pedar_mask2", "pedar_mask3".
+"simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
+"automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
+hallux, lesser toes), similar to the standard novel automask
 "pedar_mask1" splits the insole into 4 regions using sensel boundaries:
-hindfoot, midfoot, forefoot, and toes-- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
+hindfoot, midfoot, forefoot, and toes- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
 "pedar_mask2" splits the insole into 4 regions using percentages:
-hindfoot, forefoot, hallux, and lesser toes-- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
+hindfoot, forefoot, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
 "pedar_mask3" splits the foot into 9 regions using sensel boundaries:
  medial hindfoot, lateral hindfoot, medial midfoot, lateral midfoot, MTPJ1,
- MTPJ2-3, MTPJ4-5, hallux, and lesser toes-- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20}
+ MTPJ2-3, MTPJ4-5, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20}
 
 \item{foot_side}{String. "RIGHT", "LEFT", or "auto". Auto uses
 auto_detect_side function}
@@ -45,10 +46,11 @@ List. Masks are added to pressure data variable
  }
 }
 \description{
-Automatically creates mask of footprint data
+Automatically creates mask for footprint data
 }
 \examples{
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
-pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
+pressure_data <- create_mask_auto(pressure_data, "automask_simple",
+foot_side = "auto", plot = FALSE)
 }

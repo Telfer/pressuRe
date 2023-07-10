@@ -4,6 +4,7 @@
 # add more input tests to throw errors
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
+# change pedar_polygon to sensel_polygon
 
 
 # to do (future)
@@ -1340,26 +1341,26 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' pressure_data <- create_mask_auto(pressure_data, "pedar_mask1",
-#' foot_side = "auto", plot = TRUE)
+#' pressure_data <- create_mask_auto(pressure_data, "automask_simple",
+#' foot_side = "auto", plot = FALSE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
                              plot = TRUE) {
-  # automask
-  ## simple
+  # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
       stop("automask is not compatible with this type of data")
-
+    pressure_data <- automask(pressure_data, "automask_simple", plot = FALSE)
   }
 
   ## full
   if (masking_scheme == "automask_novel") {
     if (pressure_data[[2]] != "emed")
       stop("automask is not compatible with this type of data")
+    pressure_data <- automask(pressure_data, "automask_novel", plot = FALSE)
   }
 
   # pedar masks
@@ -1815,7 +1816,7 @@ dpli <- function(pressure_data, n_bins) {
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' pressure_data <- automask(pressure_data)
+#' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
 #' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
 #' mask_analysis(pressure_data, FALSE, variable = "press_peak_mask")
 #' mask_analysis(pressure_data, FALSE, variable = "contact_area_peak")
@@ -3269,10 +3270,6 @@ sensor_centroid <- function(pressure_data) {
 #'   \item masks. List
 #'   \item events. List
 #'  }
-#' @examples
-#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
-#' pressure_data <- load_emed(emed_data)
-#' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @noRd

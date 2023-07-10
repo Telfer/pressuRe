@@ -2,7 +2,6 @@
 
 export(animate_pressure)
 export(auto_detect_side)
-export(automask)
 export(cop)
 export(cpei)
 export(create_mask_auto)
