@@ -4,7 +4,6 @@
 # add more input tests to throw errors
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
-# auto_create_mask and manual_create_mask
 
 
 # to do (future)
@@ -1309,21 +1308,22 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
 # =============================================================================
 
-#' @title automask footprint
-#' @description Automatically creates mask of footprint data
+#' @title Automatically mask pressure footprint
+#' @description Automatically creates mask for footprint data
 #' @param pressure_data List. First item is a 3D array covering each timepoint
 #' of the measurement. z dimension represents time
-#' @param masking_scheme String. "automask_simple", "automask", "pedar_mask1",
-#' "pedar_mask2", "pedar_mask3".
-#' "simple_automask"
-#' "automask"
+#' @param masking_scheme String. "automask_simple", "automask_novel",
+#' "pedar_mask1", "pedar_mask2", "pedar_mask3".
+#' "simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
+#' "automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
+#' hallux, lesser toes), similar to the standard novel automask
 #' "pedar_mask1" splits the insole into 4 regions using sensel boundaries:
-#' hindfoot, midfoot, forefoot, and toes-- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
+#' hindfoot, midfoot, forefoot, and toes- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
 #' "pedar_mask2" splits the insole into 4 regions using percentages:
-#' hindfoot, forefoot, hallux, and lesser toes-- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
+#' hindfoot, forefoot, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
 #' "pedar_mask3" splits the foot into 9 regions using sensel boundaries:
 #'  medial hindfoot, lateral hindfoot, medial midfoot, lateral midfoot, MTPJ1,
-#'  MTPJ2-3, MTPJ4-5, hallux, and lesser toes-- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20
+#'  MTPJ2-3, MTPJ4-5, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20
 #' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses
 #' auto_detect_side function
 #' @param plot Logical. Whether to play the animation
@@ -1340,7 +1340,8 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
+#' pressure_data <- create_mask_auto(pressure_data, "pedar_mask1",
+#' foot_side = "auto", plot = TRUE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -1356,7 +1357,7 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
   }
 
   ## full
-  if (masking_scheme == "automask") {
+  if (masking_scheme == "automask_novel") {
     if (pressure_data[[2]] != "emed")
       stop("automask is not compatible with this type of data")
   }
@@ -1387,194 +1388,6 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
   if (plot == TRUE) {plot_masks(pressure_data)}
 
   # return
-  return(pressure_data)
-}
-
-
-# =============================================================================
-
-#' @title automask footprint
-#' @description Automatically creates mask of footprint data
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement. z dimension represents time
-#' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses
-#' auto_detect_side function
-#' @param mask_scheme String.
-#' @param plot Logical. Whether to play the animation
-#' @return List. Masks are added to pressure data variable
-#' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
-#'   \item pressure_system. String defining pressure system
-#'   \item sens_size. Numeric vector with the dimensions of the sensors
-#'   \item time. Numeric value for time between measurements
-#'   \item masks. List
-#'   \item events. List
-#'  }
-#' @examples
-#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
-#' pressure_data <- load_emed(emed_data)
-#' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
-#' @importFrom zoo rollapply
-#' @importFrom sf st_union st_difference
-#' @export
-
-automask <- function(pressure_data, foot_side = "auto", mask_scheme,
-                     plot = TRUE) {
-  # check data isn't from pedar
-  if (pressure_data[[2]] == "pedar")
-    stop("automask doesn't work with pedar data")
-
-  # global variables
-  x <- y <- mask <- x_coord <- y_coord <- me <- heel_cut_dist <-
-    mfoot_cut_prox <- ffoot_cut_prox <- NULL
-
-  # Find footprint (max)
-  max_df <- pressure_data[[8]]
-
-  # coordinates
-  sens_coords <- pressure_data[[7]][, c(1, 2)]
-
-  # side
-  if (foot_side == "auto") {
-    side <- auto_detect_side(pressure_data)
-  } else {
-    side <- foot_side
-  }
-
-  # Define minimum bounding box
-  sens_coords_m <- as.matrix(sens_coords)
-  mbb <- getMinBBox(sens_coords_m)
-
-  # Define convex hull, expanding to include all sensors
-  df_sf <- sens_coords %>%
-    st_as_sf(coords = c( "x", "y" ))
-  fp_chull <- st_convex_hull(st_union(df_sf))
-  fp_chull <- st_buffer(fp_chull, pressure_data[[3]][1])
-
-  # Simple 3 mask (forefoot, midfoot, and hindfoot)
-  ## Bounding box sides
-  side1 <- mbb[c(1:2), ]
-  side2 <- mbb[c(3:4), ]
-
-  ## Get distal 27% and 55% lines that divide into masks
-  side1_27 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.27)
-  side2_27 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.27)
-  side1_55 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.55)
-  side2_55 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.55)
-  line_27_df <- rbind(side1_27, side2_27)
-  line_55_df <- rbind(side1_55, side2_55)
-  line_27 <- st_linestring(as.matrix(line_27_df))
-  line_27 <- st_extend_line(line_27, 1)
-  line_27_dist_poly <- st_line2polygon(line_27, 1, "+Y")
-  line_27_prox_poly <- st_line2polygon(line_27, 1, "-Y")
-  line_55 <- st_linestring(as.matrix(line_55_df))
-  line_55 <- st_extend_line(line_55, 1)
-  line_55_dist_poly <- st_line2polygon(line_55, 1, "+Y")
-  line_55_prox_poly <- st_line2polygon(line_55, 1, "-Y")
-
-  ## forefoot, midfoot, and hindfoot masks
-  hf_mask <- st_difference(fp_chull, line_27_dist_poly)
-  mf_mask <- st_difference(fp_chull, line_55_dist_poly)
-  mf_mask <- st_difference(mf_mask, line_27_prox_poly)
-  ff_mask <- st_difference(fp_chull, line_55_prox_poly)
-
-  # toe masks
-  ## toe line
-  toe_line_mat <- toe_line(pressure_data)
-
-  ## toe cut polygons
-  toe_poly_prox <- st_line2polygon(as.matrix(toe_line_mat), 1, "-Y")
-  toe_poly_dist <- st_line2polygon(as.matrix(toe_line_mat), 1, "+Y")
-
-  ## make masks
-  toe_mask <- st_difference(fp_chull, toe_poly_prox)
-  ff_mask <- st_difference(ff_mask, toe_poly_dist)
-
-  # Define angles for dividing lines between metatarsals
-  ## get edge lines
-  edges <- edge_lines(pressure_data, side)
-
-  ## angle between lines
-  med_pts <- st_coordinates(edges[[1]])
-  lat_pts <- st_coordinates(edges[[2]])
-  med_line_angle <- (atan((med_pts[2, 1] - med_pts[1, 1]) /
-                            (med_pts[2, 2] - med_pts[1, 2]))) * 180 / pi
-  lat_line_angle <- (atan((lat_pts[2, 1] - lat_pts[1, 1]) /
-                            (lat_pts[2, 2] - lat_pts[1, 2]))) * 180 / pi
-  alpha <- lat_line_angle - med_line_angle
-
-
-  ## intersection point
-  med_lat_int <- st_intersection(edges[[1]], edges[[2]])
-
-  ## rotation angles for 2-4 lines
-  MT_hx_alpha <- (0.33 * alpha)
-  MT_12_alpha <- (0.3  * alpha)
-  MT_23_alpha <- (0.47 * alpha)
-  MT_34_alpha <- (0.64 * alpha)
-  MT_45_alpha <- (0.81 * alpha)
-
-  ## polys for met and hal cuts
-  if (side == "RIGHT") {lat_dir <- "+X"; med_dir <- "-X"}
-  if (side == "LEFT") {lat_dir <- "-X"; med_dir <- "+X"}
-  MT_hx_line <- rot_line(edges[[1]], MT_hx_alpha, med_lat_int)
-  MT_hx_poly_lat <- st_line2polygon(st_coordinates(MT_hx_line)[, 1:2], 1, lat_dir)
-  MT_hx_poly_med <- st_line2polygon(st_coordinates(MT_hx_line)[, 1:2], 1, med_dir)
-  MT_12_line <- rot_line(edges[[1]], MT_12_alpha, med_lat_int)
-  MT_12_poly_lat <- st_line2polygon(st_coordinates(MT_12_line)[, 1:2], 1, lat_dir)
-  MT_12_poly_med <- st_line2polygon(st_coordinates(MT_12_line)[, 1:2], 1, med_dir)
-  MT_23_line <- rot_line(edges[[1]], MT_23_alpha, med_lat_int)
-  MT_23_poly_lat <- st_line2polygon(st_coordinates(MT_23_line)[, 1:2], 1, lat_dir)
-  MT_23_poly_med <- st_line2polygon(st_coordinates(MT_23_line)[, 1:2], 1, med_dir)
-  MT_34_line <- rot_line(edges[[1]], MT_34_alpha, med_lat_int)
-  MT_34_poly_lat <- st_line2polygon(st_coordinates(MT_34_line)[, 1:2], 1, lat_dir)
-  MT_34_poly_med <- st_line2polygon(st_coordinates(MT_34_line)[, 1:2], 1, med_dir)
-  MT_45_line <- rot_line(edges[[1]], MT_45_alpha, med_lat_int)
-  MT_45_poly_lat <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, lat_dir)
-  MT_45_poly_med <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, med_dir)
-
-  ## make met masks
-  hal_mask <- st_difference(toe_mask, MT_hx_poly_lat)
-  l_toe_mask <- st_difference(toe_mask, MT_hx_poly_med)
-  MT1_mask <- st_difference(ff_mask, MT_12_poly_lat)
-  MT2_mask <- st_difference(ff_mask, MT_23_poly_lat)
-  MT2_mask <- st_difference(MT2_mask, MT_12_poly_med)
-  MT3_mask <- st_difference(ff_mask, MT_34_poly_lat)
-  MT3_mask <- st_difference(MT3_mask, MT_23_poly_med)
-  MT4_mask <- st_difference(ff_mask, MT_45_poly_lat)
-  MT4_mask <- st_difference(MT4_mask, MT_34_poly_med)
-  MT5_mask <- st_difference(ff_mask, MT_45_poly_med)
-
-  # Make mask list
-  mask_list <- list(heel_mask = hf_mask,
-                    midfoot_mask = mf_mask,
-                    forefoot_mask = ff_mask,
-                    hal_mask = hal_mask,
-                    l_toe_mask = l_toe_mask,
-                    MT1_mask = MT1_mask,
-                    MT2_mask = MT2_mask,
-                    MT3_mask = MT3_mask,
-                    MT4_mask = MT4_mask,
-                    MT5_mask = MT5_mask)
-
-
-  # Plot Footprint and masks if required
-  if (plot == TRUE) {
-    # make masks into df format
-    mask_df <- masks_2_df(mask_list)
-
-    # Plot footprint and masks
-    g <- plot_pressure(pressure_data, "max", plot = FALSE)
-    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
-    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
-    g <- g + geom_path(data = mask_df, aes(x = x, y = y, group = mask),
-                       color = "red", linewidth = 1)
-    suppressMessages(print(g))
-  }
-
-  # Return masks for analysis
-  pressure_data[[5]] <- mask_list
   return(pressure_data)
 }
 
@@ -3438,6 +3251,197 @@ sensor_centroid <- function(pressure_data) {
 }
 
 
+#' @title automask footprint
+#' @description Automatically creates mask of footprint data
+#' @param pressure_data List. First item is a 3D array covering each timepoint
+#' of the measurement. z dimension represents time
+#' @param mask_scheme String.
+#' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses
+#' auto_detect_side function
+#' @param plot Logical. Whether to play the animation
+#' @return List. Masks are added to pressure data variable
+#' \itemize{
+#'   \item pressure_array. 3D array covering each timepoint of the measurement.
+#'            z dimension represents time
+#'   \item pressure_system. String defining pressure system
+#'   \item sens_size. Numeric vector with the dimensions of the sensors
+#'   \item time. Numeric value for time between measurements
+#'   \item masks. List
+#'   \item events. List
+#'  }
+#' @examples
+#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
+#' pressure_data <- load_emed(emed_data)
+#' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
+#' @importFrom zoo rollapply
+#' @importFrom sf st_union st_difference
+#' @noRd
+
+automask <- function(pressure_data, mask_scheme, foot_side = "auto",
+                     plot = TRUE) {
+  # check data isn't from pedar
+  if (pressure_data[[2]] == "pedar")
+    stop("automask doesn't work with pedar data")
+
+  # global variables
+  x <- y <- mask <- x_coord <- y_coord <- me <- heel_cut_dist <-
+    mfoot_cut_prox <- ffoot_cut_prox <- NULL
+
+  # Find footprint (max)
+  max_df <- pressure_data[[8]]
+
+  # coordinates
+  sens_coords <- pressure_data[[7]][, c(1, 2)]
+
+  # side
+  if (foot_side == "auto") {
+    side <- auto_detect_side(pressure_data)
+  } else {
+    side <- foot_side
+  }
+
+  # Define minimum bounding box
+  sens_coords_m <- as.matrix(sens_coords)
+  mbb <- getMinBBox(sens_coords_m)
+
+  # Define convex hull, expanding to include all sensors
+  df_sf <- sens_coords %>%
+    st_as_sf(coords = c( "x", "y" ))
+  fp_chull <- st_convex_hull(st_union(df_sf))
+  fp_chull <- st_buffer(fp_chull, pressure_data[[3]][1])
+
+  # Simple 3 mask (forefoot, midfoot, and hindfoot)
+  ## Bounding box sides
+  side1 <- mbb[c(1:2), ]
+  side2 <- mbb[c(3:4), ]
+
+  ## Get distal 27% and 55% lines that divide into masks
+  side1_27 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.27)
+  side2_27 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.27)
+  side1_55 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.55)
+  side2_55 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.55)
+  line_27_df <- rbind(side1_27, side2_27)
+  line_55_df <- rbind(side1_55, side2_55)
+  line_27 <- st_linestring(as.matrix(line_27_df))
+  line_27 <- st_extend_line(line_27, 1)
+  line_27_dist_poly <- st_line2polygon(line_27, 1, "+Y")
+  line_27_prox_poly <- st_line2polygon(line_27, 1, "-Y")
+  line_55 <- st_linestring(as.matrix(line_55_df))
+  line_55 <- st_extend_line(line_55, 1)
+  line_55_dist_poly <- st_line2polygon(line_55, 1, "+Y")
+  line_55_prox_poly <- st_line2polygon(line_55, 1, "-Y")
+
+  ## forefoot, midfoot, and hindfoot masks
+  hf_mask <- st_difference(fp_chull, line_27_dist_poly)
+  mf_mask <- st_difference(fp_chull, line_55_dist_poly)
+  mf_mask <- st_difference(mf_mask, line_27_prox_poly)
+  ff_mask <- st_difference(fp_chull, line_55_prox_poly)
+
+  # if more complex automask required
+  if (mask_scheme == "automask_simple") {
+    # Make mask list
+    mask_list <- list(heel_mask = hf_mask,
+                      midfoot_mask = mf_mask,
+                      forefoot_mask = ff_mask)
+  } else if (mask_scheme == "automask_novel") {
+    ## toe line
+    toe_line_mat <- toe_line(pressure_data)
+
+    ## toe cut polygons
+    toe_poly_prox <- st_line2polygon(as.matrix(toe_line_mat), 1, "-Y")
+    toe_poly_dist <- st_line2polygon(as.matrix(toe_line_mat), 1, "+Y")
+
+    ## make masks
+    toe_mask <- st_difference(fp_chull, toe_poly_prox)
+    ff_mask <- st_difference(ff_mask, toe_poly_dist)
+
+    # Define angles for dividing lines between metatarsals
+    ## get edge lines
+    edges <- edge_lines(pressure_data, side)
+
+    ## angle between lines
+    med_pts <- st_coordinates(edges[[1]])
+    lat_pts <- st_coordinates(edges[[2]])
+    med_line_angle <- (atan((med_pts[2, 1] - med_pts[1, 1]) /
+                              (med_pts[2, 2] - med_pts[1, 2]))) * 180 / pi
+    lat_line_angle <- (atan((lat_pts[2, 1] - lat_pts[1, 1]) /
+                              (lat_pts[2, 2] - lat_pts[1, 2]))) * 180 / pi
+    alpha <- lat_line_angle - med_line_angle
+
+    ## intersection point
+    med_lat_int <- st_intersection(edges[[1]], edges[[2]])
+
+    ## rotation angles for 2-4 lines
+    MT_hx_alpha <- (0.33 * alpha)
+    MT_12_alpha <- (0.3  * alpha)
+    MT_23_alpha <- (0.47 * alpha)
+    MT_34_alpha <- (0.64 * alpha)
+    MT_45_alpha <- (0.81 * alpha)
+
+    ## polys for met and hal cuts
+    if (side == "RIGHT") {lat_dir <- "+X"; med_dir <- "-X"}
+    if (side == "LEFT") {lat_dir <- "-X"; med_dir <- "+X"}
+    MT_hx_line <- rot_line(edges[[1]], MT_hx_alpha, med_lat_int)
+    MT_hx_poly_lat <- st_line2polygon(st_coordinates(MT_hx_line)[, 1:2], 1, lat_dir)
+    MT_hx_poly_med <- st_line2polygon(st_coordinates(MT_hx_line)[, 1:2], 1, med_dir)
+    MT_12_line <- rot_line(edges[[1]], MT_12_alpha, med_lat_int)
+    MT_12_poly_lat <- st_line2polygon(st_coordinates(MT_12_line)[, 1:2], 1, lat_dir)
+    MT_12_poly_med <- st_line2polygon(st_coordinates(MT_12_line)[, 1:2], 1, med_dir)
+    MT_23_line <- rot_line(edges[[1]], MT_23_alpha, med_lat_int)
+    MT_23_poly_lat <- st_line2polygon(st_coordinates(MT_23_line)[, 1:2], 1, lat_dir)
+    MT_23_poly_med <- st_line2polygon(st_coordinates(MT_23_line)[, 1:2], 1, med_dir)
+    MT_34_line <- rot_line(edges[[1]], MT_34_alpha, med_lat_int)
+    MT_34_poly_lat <- st_line2polygon(st_coordinates(MT_34_line)[, 1:2], 1, lat_dir)
+    MT_34_poly_med <- st_line2polygon(st_coordinates(MT_34_line)[, 1:2], 1, med_dir)
+    MT_45_line <- rot_line(edges[[1]], MT_45_alpha, med_lat_int)
+    MT_45_poly_lat <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, lat_dir)
+    MT_45_poly_med <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, med_dir)
+
+    ## make met masks
+    hal_mask <- st_difference(toe_mask, MT_hx_poly_lat)
+    l_toe_mask <- st_difference(toe_mask, MT_hx_poly_med)
+    MT1_mask <- st_difference(ff_mask, MT_12_poly_lat)
+    MT2_mask <- st_difference(ff_mask, MT_23_poly_lat)
+    MT2_mask <- st_difference(MT2_mask, MT_12_poly_med)
+    MT3_mask <- st_difference(ff_mask, MT_34_poly_lat)
+    MT3_mask <- st_difference(MT3_mask, MT_23_poly_med)
+    MT4_mask <- st_difference(ff_mask, MT_45_poly_lat)
+    MT4_mask <- st_difference(MT4_mask, MT_34_poly_med)
+    MT5_mask <- st_difference(ff_mask, MT_45_poly_med)
+
+    # Make mask list
+    mask_list <- list(heel_mask = hf_mask,
+                      midfoot_mask = mf_mask,
+                      forefoot_mask = ff_mask,
+                      hal_mask = hal_mask,
+                      l_toe_mask = l_toe_mask,
+                      MT1_mask = MT1_mask,
+                      MT2_mask = MT2_mask,
+                      MT3_mask = MT3_mask,
+                      MT4_mask = MT4_mask,
+                      MT5_mask = MT5_mask)
+  }
+
+  # plot footprint and masks if required
+  if (plot == TRUE) {
+    # make masks into df format
+    mask_df <- masks_2_df(mask_list)
+
+    # Plot footprint and masks
+    g <- plot_pressure(pressure_data, "max", plot = FALSE)
+    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
+    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
+    g <- g + geom_path(data = mask_df, aes(x = x, y = y, group = mask),
+                       color = "red", linewidth = 1)
+    suppressMessages(print(g))
+  }
+
+  # Return masks for analysis
+  pressure_data[[5]] <- mask_list
+  return(pressure_data)
+}
+
+
 #' @title approve step
 #' @description asks user to approve step
 #' @noRd
@@ -3492,30 +3496,31 @@ approve_step <- function(df, on_v, off_v, n_steps, side = "none") {
 #' @param position Dataframe. A n x 3 dataframe of sensel coordinates
 #' [sensel id, x, y]
 #' @param sensel_list List. List of sensels to include
-#' @param foot_side String. "LEFT" for left foot, "RIGHT" for right foot
 #' @return polygon. A mask polygon
 #' @noRd
 
-pedar_polygon <- function(pressure_data, sensel_list, foot_side){
+pedar_polygon <- function(pressure_data, sensel_list) {
 
-  polygon_list <- sensor_2_polygon(pressure_data, pressure_image = "all_active",
-                                   frame = NA, output = "sf")
-
+  #polygon_list <- sensor_2_polygon(pressure_data, pressure_image = "all_active",
+  #                                 frame = NA, output = "sf")
+  sensor_polygons <- sens_df_2_polygon(pressure_data[[7]])
   # Left foot sensels are stored as 1:99, right foot senses are 101:99
-  #if (foot_side == "LEFT"){
+  #if (foot_side == "RIGHT"){
   #  sensel_list <- sensel_list + 99
   #}
+  sensel_polygon <- st_union(st_sfc(sensor_polygons[sensel_list]))
+  if (length(st_geometry(sensel_polygon)[[1]]) > 1)
+    stop("sensels must share a corner or an edge")
+  #sensel_polygon <- polygon_list[[sensel_list[1]]]
 
-  sensel_polygon <- polygon_list[[sensel_list[1]]]
-
-  for (sensel_idx in sensel_list[-1]) {
-    if (class(st_intersection(sensel_polygon, polygon_list[[sensel_idx]]))[[2]]
-        %in% c("LINESTRING", "POLYGON", "MULTILINESTRING")) {
-      sensel_polygon <- st_union(sensel_polygon, polygon_list[[sensel_idx]])
-    } else {
-      stop("Sensels used to define a mask must share an edge")
-    }
-  }
+  #for (sensel_idx in sensel_list[-1]) {
+  #  if (class(st_intersection(sensel_polygon, polygon_list[[sensel_idx]]))[[2]]
+  #      %in% c("LINESTRING", "POLYGON", "MULTILINESTRING")) {
+  #    sensel_polygon <- st_union(sensel_polygon, polygon_list[[sensel_idx]])
+  #  } else {
+  #    stop("Sensels used to define a mask must share an edge")
+  #  }
+  #}
 
   return(sensel_polygon)
 }
@@ -3526,15 +3531,15 @@ pedar_polygon <- function(pressure_data, sensel_list, foot_side){
 #' @noRd
 pedar_mask1 <- function(pressure_data) {
   # define masks by sensel number
-  hindfoot_L <- pedar_polygon(pressure_data, 1:26, "LEFT")
-  midfoot_L <-pedar_polygon(pressure_data, 27:54, "LEFT")
-  forefoot_L <- pedar_polygon(pressure_data, 55:82, "LEFT")
-  toes_L <- pedar_polygon(pressure_data, 83:99, "LEFT")
+  hindfoot_L <- pedar_polygon(pressure_data, 1:26)
+  midfoot_L <-pedar_polygon(pressure_data, 27:54)
+  forefoot_L <- pedar_polygon(pressure_data, 55:82)
+  toes_L <- pedar_polygon(pressure_data, 83:99)
 
-  hindfoot_R <- pedar_polygon(pressure_data, 1:26, "RIGHT")
-  midfoot_R <-pedar_polygon(pressure_data, 27:54, "RIGHT")
-  forefoot_R <- pedar_polygon(pressure_data, 55:82, "RIGHT")
-  toes_R <- pedar_polygon(pressure_data, 83:99, "RIGHT")
+  hindfoot_R <- pedar_polygon(pressure_data, 100:125)
+  midfoot_R <-pedar_polygon(pressure_data, 126:153)
+  forefoot_R <- pedar_polygon(pressure_data, 154:181)
+  toes_R <- pedar_polygon(pressure_data, 182:198)
 
   mask_list <- list(L_hindfoot_mask = hindfoot_L,
                     L_midfoot_mask = midfoot_L,
@@ -3555,8 +3560,8 @@ pedar_mask1 <- function(pressure_data) {
 #' @noRd
 pedar_mask2 <- function(pressure_data) {
   # foot outline and bounding box
-  bbox_L <- sf::st_bbox(pedar_polygon(pressure_data, 1:99, "LEFT"))
-  outline_mask <- pedar_polygon(pressure_data, 1:99, "LEFT")
+  bbox_L <- sf::st_bbox(pedar_polygon(pressure_data, 1:99))
+  outline_mask <- pedar_polygon(pressure_data, 1:99)
 
   # define percent lines
   hindfoot_line_Ly <- (bbox_L$ymax - bbox_L$ymin) / 2 + bbox_L$ymin
@@ -3586,8 +3591,8 @@ pedar_mask2 <- function(pressure_data) {
   hallux_L <- st_difference(toes_L, hallux_line_L_lat)
   lesser_toes_L <- st_difference(toes_L, hallux_line_L_med)
 
-  bbox_R <- sf::st_bbox(pedar_polygon(pressure_data, 1:99, "RIGHT"))
-  outline_mask <- pedar_polygon(pressure_data, 1:99, "RIGHT")
+  bbox_R <- sf::st_bbox(pedar_polygon(pressure_data, 100:198))
+  outline_mask <- pedar_polygon(pressure_data, 100:198)
 
   hindfoot_line_Ry <- (bbox_R$ymax - bbox_R$ymin) / 2 + bbox_R$ymin
   forefoot_line_Ry <- (bbox_R$ymax - bbox_R$ymin) * 0.85 + bbox_R$ymin
@@ -3631,25 +3636,25 @@ pedar_mask2 <- function(pressure_data) {
 #' @noRd
 pedar_mask3 <- function(pressure_data) {
   # define masks by sensel numbers
-  med_rf_L <- pedar_polygon(pressure_data, c(1:2, 6:8, 13:15, 20:22), "LEFT")
-  lat_rf_L <-pedar_polygon(pressure_data, c(9:12, 16:19, 23:26), "LEFT")
-  med_mf_L <- pedar_polygon(pressure_data, c(27:29, 34:36, 41:43, 48:50, 55:57), "LEFT")
-  lat_mf_L <- pedar_polygon(pressure_data, c(30:33, 37:40, 44:47, 51:54, 58:59), "LEFT")
-  MTPJ1_L <- pedar_polygon(pressure_data, c(62:63, 69:70, 76:77), "LEFT")
-  MTPJ23_L <- pedar_polygon(pressure_data, c(64:66, 71:73, 78:80), "LEFT")
-  MTPJ45_L <- pedar_polygon(pressure_data, c(60:61, 67:68, 74:75), "LEFT")
-  hallux_L <- pedar_polygon(pressure_data, c(83:84, 90:91, 96), "LEFT")
-  lesser_toes_L <- pedar_polygon(pressure_data, c(81:82, 89:85, 92:85, 87:99), "LEFT")
+  med_rf_L <- pedar_polygon(pressure_data, c(1:2, 6:8, 13:15, 20:22))
+  lat_rf_L <-pedar_polygon(pressure_data, c(9:12, 16:19, 23:26))
+  med_mf_L <- pedar_polygon(pressure_data, c(27:29, 34:36, 41:43, 48:50, 55:57))
+  lat_mf_L <- pedar_polygon(pressure_data, c(30:33, 37:40, 44:47, 51:54, 58:59))
+  MTPJ1_L <- pedar_polygon(pressure_data, c(62:63, 69:70, 76:77))
+  MTPJ23_L <- pedar_polygon(pressure_data, c(64:66, 71:73, 78:80))
+  MTPJ45_L <- pedar_polygon(pressure_data, c(60:61, 67:68, 74:75))
+  hallux_L <- pedar_polygon(pressure_data, c(83:84, 90:91, 96))
+  lesser_toes_L <- pedar_polygon(pressure_data, c(81:82, 85:89, 92:95, 97:99))
 
-  med_rf_R <- pedar_polygon(pressure_data, c(1:2, 6:8, 13:15, 20:22), "RIGHT")
-  lat_rf_R <-pedar_polygon(pressure_data, c(9:12, 16:19, 23:26), "RIGHT")
-  med_mf_R <- pedar_polygon(pressure_data, c(27:29, 34:36, 41:43, 48:50, 55:57), "RIGHT")
-  lat_mf_R <- pedar_polygon(pressure_data, c(30:33, 37:40, 44:47, 51:54, 58:59), "RIGHT")
-  MTPJ1_R <- pedar_polygon(pressure_data, c(62:63, 69:70, 76:77), "RIGHT")
-  MTPJ23_R <- pedar_polygon(pressure_data, c(64:66, 71:73, 78:80), "RIGHT")
-  MTPJ45_R <- pedar_polygon(pressure_data, c(60:61, 67:68, 74:75), "RIGHT")
-  hallux_R <- pedar_polygon(pressure_data, c(83:84, 90:91, 96), "RIGHT")
-  lesser_toes_R <- pedar_polygon(pressure_data, c(81:82, 89:85, 92:85, 87:99), "RIGHT")
+  med_rf_R <- pedar_polygon(pressure_data, c(100:101, 105:107, 112:114, 119:121))
+  lat_rf_R <-pedar_polygon(pressure_data, c(108:111, 115:118, 122:125))
+  med_mf_R <- pedar_polygon(pressure_data, c(126:128, 133:135, 140:142, 147:149, 154:156))
+  lat_mf_R <- pedar_polygon(pressure_data, c(129:132, 136:139, 143:146, 150:153, 157:158))
+  MTPJ1_R <- pedar_polygon(pressure_data, c(161, 162, 168, 169, 175, 176))
+  MTPJ23_R <- pedar_polygon(pressure_data, c(163:165, 170:172, 177:179))
+  MTPJ45_R <- pedar_polygon(pressure_data, c(159, 160, 166, 167, 173, 174))
+  hallux_R <- pedar_polygon(pressure_data, c(182, 183, 189, 190, 195))
+  lesser_toes_R <- pedar_polygon(pressure_data, c(180:181, 184:188, 191:194, 196:198))
 
   mask_list <- list(L_medial_hindfoot_mask = med_rf_L,
                     L_lateral_hindfoot_mask = lat_rf_L,
