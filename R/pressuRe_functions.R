@@ -1341,8 +1341,8 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' pressure_data <- create_mask_auto(pressure_data, "automask_simple",
-#' foot_side = "auto", plot = FALSE)
+#' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
+#' foot_side = "auto", plot = TRUE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -1422,9 +1422,10 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 #' @examplesIf interactive()
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' pressure_data <- automask(pressure_data, foot_side = "auto", plot = TRUE)
+#' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
+#' foot_side = "auto", plot = FALSE)
 #' pressure_data <- edit_mask(pressure_data, n_edit = 1, threshold = 0.002,
-#'   edit_list = seq(1,length(pressure_data[[5]])), image = "max")
+#' image = "max")
 #' @importFrom grDevices rainbow
 #' @export
 
