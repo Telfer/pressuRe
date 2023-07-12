@@ -1342,7 +1342,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' foot_side = "auto", plot = TRUE)
+#' foot_side = "auto", plot = FALSE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export

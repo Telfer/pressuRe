@@ -4,9 +4,9 @@
 
 
 * checking installed package size ... NOTE
-  installed size is  6.4Mb
+  installed size is  8.2Mb
   sub-directories of 1Mb or more:
-    extdata   6.1Mb
+    extdata   7.9Mb
     
 This note refers to the pressure data for this package. These files tend to be 
 large and are important to demonstrate the utility of the package and its 
