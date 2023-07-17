@@ -2,6 +2,7 @@
 This is a resubmission. In this version I have:
 
 * Reduced the number of examples for the mask_analysis function.
+* Corrected version number (0.21 > 0.2.1)
 
 ## R CMD check results
 

@@ -1,7 +1,7 @@
 Package: pressuRe
 Type: Package
 Title: Imports, Processes, and Visualizes Biomechanical Pressure Data
-Version: 0.21
+Version: 0.2.1
 Authors@R: c(person("Scott", "Telfer", , "scott.telfer@gmail.com", role = c("aut", "cre", "cph"), comment = c(ORCID = "0000-0002-0104-4027")), 
              person("Ellen", "Li", , "ellenlii07@gmail.com", role = c("aut"), comment = c(ORCID = "0000-0001-5545-7364")))
 Description: Allows biomechanical pressure data from a range of systems to be imported and processed in a reproducible manner. Automatic and manual tools are included to let the user define regions (masks) to be analyzed. Also includes functions for visualizing and animating pressure data. Example methods are described in Shi et al., (2022) <doi:10.1038/s41598-022-19814-0>, Lee et al., (2014) <doi:10.1186/1757-1146-7-18>, van der Zward et al., (2014) <doi:10.1186/1757-1146-7-20>, and Najafi et al., (2010) <doi:10.1016/j.gaitpost.2009.09.003>.
