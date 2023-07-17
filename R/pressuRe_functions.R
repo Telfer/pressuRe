@@ -1819,12 +1819,6 @@ dpli <- function(pressure_data, n_bins) {
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
 #' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
-#' mask_analysis(pressure_data, FALSE, variable = "press_peak_mask")
-#' mask_analysis(pressure_data, FALSE, variable = "contact_area_peak")
-#' mask_analysis(pressure_data, FALSE, variable = "pti_1")
-#' mask_analysis(pressure_data, FALSE, variable = "pti_2")
-#' mask_analysis(pressure_data, FALSE, variable = "fti")
-#' mask_analysis(pressure_data, FALSE, variable = "force_peak")
 #' @importFrom sf st_intersects st_geometry st_area
 #' @importFrom pracma trapz
 #' @export

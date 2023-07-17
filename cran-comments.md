@@ -1,3 +1,8 @@
+## Resubmission
+This is a resubmission. In this version I have:
+
+* Reduced the number of examples for the mask_analysis function.
+
 ## R CMD check results
 
 0 errors | 0 warnings | 1 note
