@@ -1260,6 +1260,10 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
   # define mask by selecting sensors
   if (mask_definition == "by_sensors") {
+    # check just one mask
+    if (n_masks != 1)
+      stop("only one mask can be created when using by_sensors")
+
     # selection of sensors
     message(paste0("Select ", n_sens, " adjacent sensors to define your custom mask"))
     sensor_pts <- gglocator(n_sens)
