@@ -5,7 +5,7 @@
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
 # change pedar_polygon to sensel_polygon
-# plot sensor max average for all data
+# combine pedar files
 
 
 # to do (future)
@@ -881,7 +881,8 @@ cop <- function(pressure_data) {
 #'   measurement. z dimension represents time
 #' @param variable String. "max" = maximum value of each sensor across full
 #' dataset. "mean" = average value of sensors over full dataset."frame" = an
-#' individual pressure frame
+#' individual pressure frame. "meanmax" average max values across cycles (
+#' currently just for pedar)
 #' @param frame Integer. Only used if variable = "frame".
 #' @param plot Logical. Display pressure image
 #' @return Matrix. Maximum or mean values for all sensors
@@ -896,7 +897,8 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
   # check input
   if (is.array(pressure_data[[1]]) == FALSE)
     stop("pressure_frames input must contain an array")
-  stopifnot("Unknown Variable" = variable %in% c("max", "mean", "frame"))
+  stopifnot("Unknown Variable" = variable %in% c("max", "mean", "frame",
+                                                 "meanmax"))
   if (variable == "frame" & missing(frame))
     stop("For a single frame, a value is needed for frame variable")
 
@@ -912,6 +914,37 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
       mat <- pressure_data[[1]][frame, ]
     } else {
       stop("The frame selected is greater that the number of frames in trial")
+    }
+  }
+  if (variable == "meanmax") {
+    if (is.data.frame(pressure_data[[6]]) == FALSE) {
+      stop("data must have events defined")
+    } else {
+      if (pressure_data[[2]] == "pedar") {
+        evs <- pressure_data[[6]]
+        ev_rows_r <- which(evs[, 1] == "RIGHT")
+        ev_rows_l <- which(evs[, 1] == "LEFT")
+        mat_peak_r <- matrix(NA, nrow = length(ev_rows_r), ncol = 99)
+        mat_peak_l <- matrix(NA, nrow = length(ev_rows_l), ncol = 99)
+
+        # right
+        for (i in 1:length(ev_rows_r)) {
+          start_frame <- evs[ev_rows_r[i], 2]
+          end_frame <- evs[ev_rows_r[i], 3]
+          pd <- pressure_data[[1]][start_frame:end_frame, 100:198]
+          mat_peak_r[i, ] <- apply(pd, 2, "max")
+        }
+        mean_peak_r <- apply(mat_peak_r, 2, "max")
+        # left
+        for (i in 1:length(ev_rows_l)) {
+          start_frame <- evs[ev_rows_l[i], 2]
+          end_frame <- evs[ev_rows_l[i], 3]
+          pd <- pressure_data[[1]][start_frame:end_frame, 1:99]
+          mat_peak_l[i, ] <- apply(pd, 2, "max")
+        }
+        mean_peak_l <- apply(mat_peak_l, 2, "max")
+        mat <- c(mean_peak_l, mean_peak_r)
+      }
     }
   }
 
@@ -933,7 +966,9 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 #' average value of sensors over time (usually for static analyses). "frame" =
 #' an individual frame
 #' @param frame Integer.
-#' @param step_n If numeric, the step number to plot (only for insole data).
+#' @param step_n If numeric, the step number to plot (only for insole data). If
+#' "max", the max across complete trial, if "meanmax", the max on a per step
+#' basis
 #' @param smooth Logical. Not implemented. If TRUE, plot will interpolate
 #'   between sensors to increase data density
 #' @param plot_COP Logical. If TRUE, overlay COP data on plot. Default = FALSE
@@ -974,6 +1009,7 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
   # if pedar
   if (pressure_data[[2]] == "pedar") {
     if (step_n == "max") {pedar_var <- "max"; step_no <- NA}
+    if (step_n == "meanmax") {pedar_var <- "meanmax"; step_no <- NA}
     if (is.numeric(step_n)) {pedar_var <- "step_max"; step_no <- step_n}
     cor <- plot_pedar(pressure_data, pedar_var, step_no, foot_side = "both")
     x_lims <- c(0, max(cor$x))
@@ -986,10 +1022,6 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
 
     # footprint
     fp <- footprint(pressure_data, variable = variable, frame)
-
-    # get footprint vector
-    #fp <- as.vector(fp)
-    #fp <- fp[fp > 0]
 
     # combine with pressure values
     ids <- c(1:length(fp))
@@ -2582,7 +2614,7 @@ force_pedar <- function(pressure_data, variable = "force", min_press = 10) {
 #' @description produces dataframe that plot_pressure uses to plot pedar data
 #' @param pressure_data List.
 #' @param pressure_image String. "max" = maximum values for full trial;
-#' "mean" = mean value across trial; "step_max"; "step_mean"
+#' "mean" = mean value across trial; "step_max"; "step_mean"; "meanmax"
 #' @param foot_side String. "both", "left", or "right"
 #' @param step_n Numeric. If pressure_image is "step_max", the step number to
 #' analyze
@@ -2606,6 +2638,7 @@ plot_pedar <- function(pressure_data, pressure_image = "max",
   if (pressure_image == "max") {
     R_data <- apply(pressure_R_mat, 2, max)
     L_data <- apply(pressure_L_mat, 2, max)
+    comb_data <- c(L_data, R_data)
   }
 
   # separate into steps
@@ -2615,16 +2648,16 @@ plot_pedar <- function(pressure_data, pressure_image = "max",
     pressure_L_mat <- pressure_L_mat[c(events[step_n, 2]:events[step_n, 3]), ]
     R_data <- apply(pressure_R_mat, 2, max)
     L_data <- apply(pressure_L_mat, 2, max)
+    comb_data <- c(L_data, R_data)
   }
 
-  # combine data
-  comb_data <- c(L_data, R_data)
+  # average across steps
+  if (pressure_image == "meanmax") {
+    comb_data <- footprint(pressure_data, "meanmax")
+  }
 
   # make ids
   ids <- 1:198
-  #ids <- c()
-  #for (i in 1:99) {ids = append(ids, paste0("L", i))}
-  #for (i in 1:99) {ids = append(ids, paste0("R", i))}
 
   # make df
   df <- data.frame(id = ids, value = comb_data)
