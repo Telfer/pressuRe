@@ -3189,9 +3189,16 @@ threshold_event <- function(pressure_data, threshold = "auto", min_frames, side)
 
   # Adjust thresholds to avoid errors
   min_f <- min(force)
+  max_f <- max(force)
   if (threshold == "auto") {
-    thresh <- min_f + 10
-  } else {thresh <- threshold + 0.01}
+    thresh <- min_f + (0.1 * (max_f - min_f))
+  } else {
+    if (as.numeric(threshold) == TRUE) {
+      thresh <- threshold + 0.01
+    } else {
+        stop("threshold can be auto or a numeric value")
+    }
+  }
 
   # throw error if threshold is less than min of trial
   if (min_f > thresh) {
