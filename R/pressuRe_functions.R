@@ -5,7 +5,8 @@
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
 # change pedar_polygon to sensel_polygon
-# combine pedar files
+# Stop "None" being exported for pedar files in mask analysis
+# mask_analysis output values should be numeric
 
 
 # to do (future)
@@ -621,8 +622,7 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 
   # get force df
   if (pressure_data[[2]] == "pedar") {
-    R <- "RIGHT"
-    te_R <- threshold_event(pressure_data, threshold[1], min_frames, R)
+    te_R <- threshold_event(pressure_data, threshold[1], min_frames, "RIGHT")
     te_L <- threshold_event(pressure_data, threshold[length(threshold)],
                             min_frames, "LEFT")
     df_R <- te_R[[1]]
