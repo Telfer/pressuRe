@@ -1999,7 +1999,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   # fix col names
   colnames(output_df) <- col_names
   if (pressure_data[[2]] == "pedar") {
-    output_df <- output_df %>% filter(!is.na(side))
+    output_df <- output_df %>% filter(side != "None")
   }
 
 
@@ -2066,6 +2066,12 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   #if (pressure_units == "Ncm2") {output_df$value <- output_df$value * 0.1}
 
   # adjust df
+  output_df$time <- as.numeric(output_df$time)
+  output_df$cycle <- as.integer(output_df$cycle)
+  output_df$side <- as.factor(output_df$side)
+  output_df$pressure_variable <- as.factor(output_df$pressure_variable)
+  output_df$mask_name <- as.factor(output_df$mask_name)
+  output_df$value <- as.numeric(output_df$value)
   if (!str_ends(variable, "_ts")) {output_df <- subset(output_df, select = -c(time))}
   if (pressure_data[[2]] != "pedar") {output_df <- subset(output_df, select = -c(side))}
   if (length(events) == 0) {output_df <- subset(output_df, select = -c(cycle))}
