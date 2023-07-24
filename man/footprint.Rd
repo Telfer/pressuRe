@@ -12,7 +12,8 @@ measurement. z dimension represents time}
 
 \item{variable}{String. "max" = maximum value of each sensor across full
 dataset. "mean" = average value of sensors over full dataset."frame" = an
-individual pressure frame}
+individual pressure frame. "meanmax" average max values across cycles (
+currently just for pedar)}
 
 \item{frame}{Integer. Only used if variable = "frame".}
 

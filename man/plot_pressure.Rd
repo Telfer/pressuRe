@@ -33,7 +33,9 @@ between sensors to increase data density}
 
 \item{frame}{Integer.}
 
-\item{step_n}{If numeric, the step number to plot (only for insole data).}
+\item{step_n}{If numeric, the step number to plot (only for insole data). If
+"max", the max across complete trial, if "meanmax", the max on a per step
+basis}
 
 \item{plot_COP}{Logical. If TRUE, overlay COP data on plot. Default = FALSE}
 
