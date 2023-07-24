@@ -7,7 +7,7 @@
 # change pedar_polygon to sensel_polygon
 # Stop "None" being exported for pedar files in mask analysis
 # mask_analysis output values should be numeric
-
+# create mask manual work with internal hole
 
 # to do (future)
 # global pressure_import function (leave for V2)
@@ -934,7 +934,7 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
           pd <- pressure_data[[1]][start_frame:end_frame, 100:198]
           mat_peak_r[i, ] <- apply(pd, 2, "max")
         }
-        mean_peak_r <- apply(mat_peak_r, 2, "max")
+        mean_peak_r <- apply(mat_peak_r, 2, "mean")
         # left
         for (i in 1:length(ev_rows_l)) {
           start_frame <- evs[ev_rows_l[i], 2]
@@ -942,7 +942,7 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
           pd <- pressure_data[[1]][start_frame:end_frame, 1:99]
           mat_peak_l[i, ] <- apply(pd, 2, "max")
         }
-        mean_peak_l <- apply(mat_peak_l, 2, "max")
+        mean_peak_l <- apply(mat_peak_l, 2, "mean")
         mat <- c(mean_peak_l, mean_peak_r)
       }
     }
@@ -1874,23 +1874,20 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   events <- pressure_data[[6]]
 
   # set up mask/sensor areas
-  ## sensor area
-  if (pressure_data[[2]] != "pedar") {
-    # Make active sensors into polygons
-    sens_poly <- sens_df_2_polygon(pressure_data[[7]])
+  ## Make active sensors into polygons
+  sens_poly <- sens_df_2_polygon(pressure_data[[7]])
 
-    ## For each region mask, find which polygons intersect
-    sens_mask_df <- matrix(rep(0, length.out = (length(sens_poly) * length(masks))),
-                           nrow = length(sens_poly), ncol = length(masks))
-    sens_mask_df <- as.data.frame(sens_mask_df)
-    colnames(sens_mask_df) <- names(masks)
-    for (i in 1:length(masks)){
-      for (j in 1:length(sens_poly)) {
-        x <- st_intersects(masks[[i]], sens_poly[[j]])
-        if (identical(x[[1]], integer(0)) == FALSE) {
-          y <- st_intersection(masks[[i]], sens_poly[[j]])
-          sens_mask_df[j, i] <- st_area(y) / pressure_data[[3]][j]
-        }
+  ## For each region mask, find which polygons intersect
+  sens_mask_df <- matrix(rep(0, length.out = (length(sens_poly) * length(masks))),
+                         nrow = length(sens_poly), ncol = length(masks))
+  sens_mask_df <- as.data.frame(sens_mask_df)
+  colnames(sens_mask_df) <- names(masks)
+  for (mask in 1:length(masks)){
+    for (j in 1:length(sens_poly)) {
+      x <- st_intersects(masks[[mask]], sens_poly[[j]])
+      if (identical(x[[1]], integer(0)) == FALSE) {
+        y <- st_intersection(masks[[mask]], sens_poly[[j]])
+        sens_mask_df[j, mask] <- st_area(y) / pressure_data[[3]][j]
       }
     }
   }
@@ -1904,24 +1901,6 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
         mask_sides[mask] <- "LEFT"
       } else {
         mask_sides[mask] <- "RIGHT"
-      }
-    }
-
-    # Make active sensors into polygons
-    sens_poly <- sens_df_2_polygon(pressure_data[[7]])
-
-    # For each region mask, find which polygons intersect
-    sens_mask_df <- matrix(rep(0, length.out = (length(sens_poly) * length(masks))),
-                           nrow = length(sens_poly), ncol = length(masks))
-    sens_mask_df <- as.data.frame(sens_mask_df)
-    colnames(sens_mask_df) <- names(masks)
-    for (mask in seq_along(masks)){
-      for (j in 1:length(sens_poly)) {
-        x <- st_intersects(masks[[mask]], sens_poly[[j]])
-        if (identical(x[[1]], integer(0)) == FALSE) {
-          y <- st_intersection(masks[[mask]], sens_poly[[j]])
-          sens_mask_df[j, mask] <- st_area(y) / st_area(sens_poly[[j]])
-        }
       }
     }
   }
