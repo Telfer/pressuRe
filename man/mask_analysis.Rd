@@ -23,7 +23,7 @@ proportion of the sensor that falls within the mask border}
 
 \item{variable}{String. Variable to be determined. "press_peak_sensor",
 "press_peak_mask", "contact_area_peak", "pti_1", "pti_2",
-"force_time_integral", "force_peak"}
+"force_time_integral", "force_peak", "dpli"}
 
 \item{pressure_units}{String. Default "kPa". Other options: "MPa", "Ncm2"
 (Newtons per square centimeter)}
@@ -42,5 +42,5 @@ Analyze masked regions of pressure data
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
-mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
+mask_analysis(pressure_data, FALSE, variable = "dpli")
 }
