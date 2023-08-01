@@ -1759,82 +1759,6 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
 
 # =============================================================================
 
-#' @title Dynamic Plantar Loading Index
-#' @description Determine Dynamic plantar loading index (DPLI) for
-#' footprint pressure data
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement.
-#' @param n_bins Numeric. Number of bins used to calculate DPLI
-#' @returns Data frame. Contains DPLI for each step
-#' @examples
-#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
-#' pressure_data <- load_emed(emed_data)
-#' dpli(pressure_data, 10)
-#' @importFrom graphics hist
-#' @importFrom stats dnorm lm sd
-#' @export
-
-dpli <- function(pressure_data, n_bins) {
-  if (length(pressure_data[[6]]) == 0) {
-    n_step = 1
-  } else {
-    n_step = nrow(pressure_data[[6]])
-  }
-
-  # df to store result
-  dpli <- data.frame(step = c(1:n_step),
-                     dpli = rep(NA, length.out = n_step))
-
-  # get loading index for each step
-  for (step in 1:n_step) {
-    # get step data
-    if (n_step == 1) {
-      pressure_array <- pressure_data[[1]]
-    } else {
-      step_str <- unname(unlist(pressure_data[[6]][step, 2]))
-      step_end <- unname(unlist(pressure_data[[6]][step, 3]))
-      pressure_array <- pressure_data[[1]][c(step_str:step_end), ]
-    }
-
-    # check for step side (pedar)
-    if (pressure_data[[2]] == "pedar") {
-      if (pressure_data[[6]][step, 1] == "RIGHT") {
-        pressure_array[, 1:99] <- 0
-      } else {pressure_array[, 100:198] <- 0}
-    }
-
-    # get peak pressure vector
-    press_vec <- rep(NA, length.out = nrow(pressure_array))
-    for (i in 1:nrow(pressure_array)) {
-      press_vec[i] <- max(pressure_array[i, ])
-    }
-
-    # interpolate to 101
-    press_vec <- approxP(press_vec, 101)
-
-    # bin data
-    binned <- hist(press_vec, breaks = seq(from = min(press_vec),
-                                           to = max(press_vec),
-                                           length.out = n_bins + 1),
-                   plot = FALSE)
-
-    # get distribution
-    sd_press <- sd(press_vec)
-    mean_press <- mean(press_vec)
-    norm_dist <- dnorm(binned$mids, mean_press, sd_press)
-    norm_dist <- norm_dist * (max(binned$counts) / max(norm_dist))
-
-    # get r^2
-    dpli[step, 2] <- summary(lm(binned$counts ~ norm_dist))$adj.r.squared
-  }
-
-  # return
-  return(dpli)
-}
-
-
-# =============================================================================
-
 #' Analyze masked regions of pressure data
 #' @param pressure_data List. Includes a 3D array covering each timepoint of the
 #'   measurement. z dimension represents time
@@ -1844,7 +1768,7 @@ dpli <- function(pressure_data, n_bins) {
 #'   proportion of the sensor that falls within the mask border
 #' @param variable String. Variable to be determined. "press_peak_sensor",
 #' "press_peak_mask", "contact_area_peak", "pti_1", "pti_2",
-#' "force_time_integral", "force_peak"
+#' "force_time_integral", "force_peak", "dpli"
 #' @param pressure_units String. Default "kPa". Other options: "MPa", "Ncm2"
 #' (Newtons per square centimeter)
 #' @param area_units String. Default is "cm2" (square centimeters). Other
@@ -1855,7 +1779,7 @@ dpli <- function(pressure_data, n_bins) {
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
-#' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
+#' mask_analysis(pressure_data, FALSE, variable = "dpli")
 #' @importFrom sf st_intersects st_geometry st_area
 #' @importFrom pracma trapz
 #' @export
@@ -1983,6 +1907,11 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
       if (variable == "fti") {
         pv <- "fti"
         val <- fti(pressure_data_, pressure_data, sens_mask_df, mask)
+      }
+
+      if (variable == "dpli") {
+        pv <- "dpli"
+        val <- dpli(pressure_data_, pressure_data, sens_mask_df, mask, 30)
       }
 
       # pedar adjustments to output df
@@ -3698,6 +3627,58 @@ pedar_mask3 <- function(pressure_data) {
                     R_lesser_toes_mask = lesser_toes_R)
 }
 
+
+
+#' @title Dynamic Plantar Loading Index
+#' @description Determine Dynamic plantar loading index (DPLI) for
+#' footprint pressure data
+#' @param pressure_data List. First item is a 2D array covering each timepoint
+#' of the measurement.
+#' @param n_bins Numeric. Number of bins used to calculate DPLI
+#' @returns Data frame. Contains DPLI for each step
+#' @examples
+#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
+#' pressure_data <- load_emed(emed_data)
+#' pressure_data <- create_mask_auto(pressure_data, "automask_novel")
+#' pressure_data_ <- pressure_data[[1]]
+#' dpli(pressure_data_, pressure_data, sens_mask_df, 1)
+#' @importFrom graphics hist
+#' @importFrom stats dnorm lm sd
+#' @noRd
+
+dpli <- function(pressure_data_, pressure_data, sens_mask_df, mask,
+                 n_bins = 30) {
+  # row_max
+  press_mat <- pressure_data_[, which(sens_mask_df[mask] > 0)]
+  press_vec <- apply(press_mat, 1, max)
+
+  # remove empty values from begining and end
+  press_vec <- press_vec[min(which(press_vec != 0)):max(which(press_vec != 0))]
+
+  # interpolate to 101
+  press_vec <- approxP(press_vec, 101)
+
+  # bin data
+  binned <- hist(press_vec, breaks = seq(from = min(press_vec),
+                                         to = max(press_vec),
+                                         length.out = n_bins + 1),
+                 plot = FALSE)
+
+  # get distribution
+  sd_press <- sd(press_vec)
+  mean_press <- mean(press_vec)
+  norm_dist <- dnorm(binned$mids, mean_press, sd_press)
+  norm_dist <- norm_dist * (max(binned$counts) / max(norm_dist))
+
+  # get r^2 (dpli)
+  val <- summary(lm(binned$counts ~ norm_dist))$adj.r.squared
+
+  # return
+  return(val)
+}
+
+
+# =============================================================================
 
 # data
 pedar_insole_area <- function() {
