@@ -1,18 +1,16 @@
 # to do (current version)
 # pliance if sensors matrix then add max_matrix
-# Do we have all pedar insoles? Double check areas
-# add more input tests to throw errors
 # fscan processing needs to be checked (work with NA?)
 # in edit_mask, make edit_list a vector that works with numbers or names?
 # change pedar_polygon to sensel_polygon
-# Stop "None" being exported for pedar files in mask analysis
-# mask_analysis output values should be numeric
 # create mask manual work with internal hole
+# add XSENSOR support
 
 # to do (future)
 # global pressure_import function (leave for V2)
 # create masks for iscan during startup
 # CPEI manual edit to be built into function
+# add more input tests to throw errors
 # cop for pedar
 # UNITS!!!
 
