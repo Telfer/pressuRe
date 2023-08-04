@@ -4,7 +4,7 @@
 # in edit_mask, make edit_list a vector that works with numbers or names?
 # change pedar_polygon to sensel_polygon
 # create mask manual work with internal hole
-# add XSENSOR support
+# make capture frequency a vector to allow for uneven sampling
 
 # to do (future)
 # global pressure_import function (leave for V2)
@@ -67,7 +67,7 @@ load_emed <- function(pressure_filepath) {
   sens_size <- str_extract_all(pressure_raw[sens_size_ln], "\\d+\\.\\d+")
   sens_size <- as.numeric(unlist(sens_size))
   if (str_detect(pressure_raw[sens_size_ln], "cm") == TRUE) {
-    sens_size <- sens_size * 0.01
+    sens_size <- sens_size * 0.0001
   }
 
   # get capture frequency
@@ -107,17 +107,8 @@ load_emed <- function(pressure_filepath) {
       str <- (nfs * i) - nfs + j
 
       # load as table
-      y <- pressure_raw[(breaks[str] + 10):(ends[which(ends > breaks[str])[1]] - 2)]
-      num_col <- unlist(str_split(y[1], "\\s+"))
-      wids <- rep(8, times = length(num_col))
-      if (nfs > 1) {
-        z <- read.fwf(textConnection(y), widths = wids)
-      } else {
-        z <- read.table(textConnection(y), sep = "\t")
-      }
-
-      colnames(z) <- unname(z[1, ])
-      z <- z[2:nrow(z), ]
+      y <- pressure_raw[(breaks[str] + 10):(ends[which(ends > breaks[str])[1]] - 1)]
+      z <- read.table(textConnection(y), sep = "", header = TRUE)
 
       # remove zeros
       z[is.na(z)] <- 0
@@ -126,18 +117,14 @@ load_emed <- function(pressure_filepath) {
       if (colnames(z)[ncol(z)] == "Force") {z <- z[, 1:(ncol(z) - 1)]}
 
       # remove force row
-      if (z[nrow(z), 1] == "Force") {z <- z[1:(nrow(z) - 1),]}
+      if (rownames(z)[nrow(z)] == "Force") {z <- z[1:(nrow(z) - 1),]}
 
-      # column numbers
-      cn <- as.numeric(colnames(z)[2:length(z)])
-
-      # row numbers
-      rn <- unname(unlist((z[, 1])))
-      z <- as.matrix(z[, 2:ncol(z)])
-      z <- matrix(as.numeric(z), ncol = ncol(z))
+      # column and row numbers
+      cn <- as.numeric(gsub("\\D", "", colnames(z)))
+      rn <- as.numeric(gsub("\\D", "", rownames(z)))
 
       # add to array
-      pressure_array[rn, cn, i] <- z
+      pressure_array[rn, cn, i] <- as.matrix(z)
     }
   }
 
@@ -509,6 +496,123 @@ load_footscan <- function(pressure_filepath) {
   return(list(pressure_array = pressure_array, pressure_system = "footscan",
               sens_size = sens_areas, time = time, masks = NULL, events = NULL,
               sensor_polygon = sens_polygons, max_matrix = max_mat))
+}
+
+
+# =============================================================================
+
+#' @title Load xsensor data
+#' @description Imports and formats files collected on xsensor insole systems
+#' @param pressure_filepath String. Filepath pointing to emed pressure file
+#' @return A list with information about the pressure data.
+#' \itemize{
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            row dimension represents time
+#'   \item pressure_system. String defining pressure system
+#'   \item sens_size. Numeric vector with the dimensions of the sensors
+#'   \item time. Numeric value for time between measurements
+#'   \item masks. List
+#'   \item events. List
+#'   \item sensor_polygons. Data frame with corners of sensors
+#'   \item max_matrix. Matrix
+#'  }
+#'  @examples
+#' xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
+#' pressure_data <- load_xsensor(xsensor_data)
+#'  @importFrom abind abind
+#'  @export
+load_xsensor <- function(pressure_filepath) {
+  # check parameters
+  ## file exists
+  if (file.exists(pressure_filepath) == FALSE)
+    stop("file does not exist")
+
+  ## extension is correct
+  if (str_split(basename(pressure_filepath), "\\.")[[1]][2] != "csv")
+    stop("incorrect file extension, expected .csv")
+
+  # Read unformatted emed data
+  pressure_raw <- readLines(pressure_filepath, warn = FALSE)
+
+  # get sensor size
+  sens_w_ln <- which(grepl("Sensel Width", pressure_raw, useBytes = TRUE))[1]
+  sens_h_ln <- which(grepl("Sensel Height", pressure_raw, useBytes = TRUE))[1]
+  sens_w <- str_extract_all(pressure_raw[sens_w_ln], "\\d+\\.\\d+")
+  sens_w <- as.numeric(unlist(sens_w))
+  sens_h <- str_extract_all(pressure_raw[sens_h_ln], "\\d+\\.\\d+")
+  sens_h <- as.numeric(unlist(sens_h))
+  sens_size <- sens_w * sens_h
+  if (str_detect(pressure_raw[sens_w_ln], "cm") == TRUE) {
+    sens_size <- sens_size * 0.0001
+  }
+
+  # get capture frequency
+  time_ln <- which(grepl("^Time,", pressure_raw, useBytes = TRUE))[c(10, 11)]
+  time_1 <- str_split(pressure_raw[time_ln[1]], ",")[[1]][2]
+  time_1 <- as.POSIXct(time_1, format = "%H:%M:%OS")
+  time_2 <- str_split(pressure_raw[time_ln[2]], ",")[[1]][2]
+  time_2 <- as.POSIXct(time_2, format = "%H:%M:%OS")
+  time <- as.numeric(difftime(time_2, time_1))
+
+  # right foot
+  ## determine position breaks
+  breaks <- str_which(pressure_raw, "FRAME")
+  rf <- str_which(pressure_raw, "RF")
+  lf <- str_which(pressure_raw, "LF")
+  sensels <- str_which(pressure_raw, "SENSELS")
+
+  ## matrix size
+  n_row <- which(grepl("Rows", pressure_raw))[1]
+  n_row <- as.numeric(unlist(str_extract_all(pressure_raw[n_row], "\\d+")))
+  n_col <- which(grepl("Columns", pressure_raw))[1]
+  n_col <- as.numeric(unlist(str_extract_all(pressure_raw[n_col], "\\d+")))
+
+  ## get frames
+  pressure_array_r <- array(0, dim = c(n_row, n_col, length(breaks)))
+  pressure_array_l <- pressure_array_r
+
+  for (frm in seq_along(breaks)) {
+    # right
+    rf_ln <- rf[which(rf > breaks[frm])][1]
+    sensel_ln <- sensels[which(sensels > rf_ln)][1]
+    y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
+    y <- y[seq(1, (n_row * 2), 2)]
+    z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
+    pressure_array_r[,, frm] <- as.matrix(z)
+
+    # left
+    lf_ln <- lf[which(lf > breaks[frm])][1]
+    sensel_ln <- sensels[which(sensels > lf_ln)][1]
+    y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
+    y <- y[seq(1, (n_row * 2), 2)]
+    z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
+    pressure_array_l[,, frm] <- as.matrix(z)
+  }
+
+  # join left and right (separate by 2 empty cols)
+  empty <- array(0, c(n_row, 2, length(breaks)))
+  pressure_array <- abind::abind(pressure_array_l, empty, pressure_array_r, along = 2)
+
+  # make max mat
+  max_mat <- apply(simplify2array(pressure_array), 1:2, max)
+
+  # active sensor polygons
+  active_sensors <- which(max_mat > 0, arr.ind = TRUE)
+  sens_array <- sensor_2_polygon3(max_mat, sens_w, sens_h)
+
+  # active sensor areas
+  sens_areas <- sensor_area(sens_array)
+
+  # array to 2d matrix
+  full_mat <- matrix(NA, nrow = dim(pressure_array)[3], ncol = nrow(active_sensors))
+  for (i in 1:dim(pressure_array)[3]) {
+    full_mat[i, ] <- pressure_array[, , i][active_sensors]
+  }
+
+  # return formatted xsensor data
+  return(list(pressure_array = full_mat, pressure_system = "xsensor",
+              sens_size = sens_areas, time = time, masks = NULL, events = NULL,
+              sens_polygons = sens_array, max_matrix = max_mat))
 }
 
 
