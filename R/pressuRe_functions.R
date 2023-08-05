@@ -67,7 +67,7 @@ load_emed <- function(pressure_filepath) {
   sens_size <- str_extract_all(pressure_raw[sens_size_ln], "\\d+\\.\\d+")
   sens_size <- as.numeric(unlist(sens_size))
   if (str_detect(pressure_raw[sens_size_ln], "cm") == TRUE) {
-    sens_size <- sens_size * 0.0001
+    sens_size <- sens_size * 0.01
   }
 
   # get capture frequency
