@@ -3242,7 +3242,7 @@ threshold_event <- function(pressure_data, threshold = "auto", min_frames, side)
   if (threshold == "auto") {
     thresh <- min_f + (0.1 * (max_f - min_f))
   } else {
-    if (as.numeric(threshold) == TRUE) {
+    if (is.numeric(threshold) == TRUE) {
       thresh <- threshold + 0.01
     } else {
         stop("threshold can be auto or a numeric value")
