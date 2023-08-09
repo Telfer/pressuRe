@@ -1881,7 +1881,7 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
-#' mask_analysis(pressure_data, FALSE, variable = "dpli")
+#' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor_ts")
 #' @importFrom sf st_intersects st_geometry st_area
 #' @importFrom pracma trapz
 #' @export
@@ -1974,10 +1974,20 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
         val <- pressure_peak(pressure_data_, sens_mask_df, mask)
       }
 
+      if (variable == "press_peak_sensor_ts") {
+        pv <- "peak_press_sensor_ts"
+        val <- pressure_peak_ts(pressure_data_, sens_mask_df, mask)
+      }
+
       # Analyse regions for maximum force during the trial
       if (variable == "force_peak") {
         pv <- "peak_force"
         val <- force_peak(pressure_data_, pressure_data, sens_mask_df, mask)
+      }
+
+      if (variable == "force_ts") {
+        pv <- "force_ts"
+        val <- force_ts(pressure_data_, pressure_data, sens_mask_df, mask)
       }
 
       # Analyse regions for peak regional pressure (defined as the pressure
@@ -2023,7 +2033,16 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
       }
 
       # add to output df
-      output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      if (!str_ends(variable, "_ts")) {
+        output_df <- rbind(output_df, c(time, cycle, side, pv, mn, val))
+      } else {
+        ns <- length(val)
+        df <- data.frame(time = seq(0, by = pressure_data[[4]], length.out = ns),
+                         cycle = rep(cycle, ns), side = rep(side, ns),
+                         pressure_variable = rep(pv, ns),
+                         mask_name = rep(mn, ns), value = val)
+        output_df <- rbind(output_df, df)
+      }
     }
   }
 
@@ -2032,22 +2051,6 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   if (pressure_data[[2]] == "pedar") {
     output_df <- output_df %>% filter(side != "None")
   }
-
-
-  # Analyse regions for maximum value of any sensor for each measurement frame
-  #if (variable == "press_peak_sensor_ts") {
-  #  for (mask in seq_along(masks)) {
-  #    for (i in 1:(dim(pressure_data[[1]])[3])) {
-  #      P <- c(pressure_data[[1]][, , i])
-  #      P <- P[act_sens]
-  #      output_mat[i, mask] <- max(P[which(sens_mask_df[, mask] > 0)])
-  #    }
-  #  }
-  #  if (pressure_units == "MPa") {output_mat <- output_mat * 0.001}
-  #  if (pressure_units == "Ncm2") {output_mat <- output_mat * 0.1}
-  #}
-
-
 
   # Analyse regions for peak mask pressure (defined as the maximum mean pressure
   # of active sensors in region during the trial). Outputs 101 point vector (kPa)
@@ -2077,17 +2080,6 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
         if (area_units == "cm2") {cArea <- cArea * 10000}
         if (area_units == "mm2") {cArea <- cArea * 1000000}
         output_mat[i, mask] <- cArea
-      }
-    }
-  }
-
-  # Analyse regions for force throughout the trial (outputs vector)
-  if (variable == "force_ts") {
-    for (mask in seq_along(masks)) {
-      for (i in 1:(dim(pressure_data[[1]])[3])) {
-        P <- c(pressure_data[[1]][, , i])
-        P <- P[act_sens] * sensor_area * 1000
-        output_mat[i, mask] <- sum(P * sens_mask_df[, mask])
       }
     }
   }
@@ -3103,6 +3095,22 @@ pressure_peak <- function(pressure_data, sens_mask_df, mask) {
 }
 
 
+#' @title Peak pressure time series
+#' @description get highest value of sensor in mask per frame
+#' @noRd
+
+pressure_peak_ts <- function(pressure_data, sens_mask_df, mask) {
+  val_ts <- rep(NA, nrow(pressure_data))
+  # analysis
+  for (i in 1:nrow(pressure_data)) {
+    val_ts[i] <- max(pressure_data[i, which(sens_mask_df[, mask] > 0)])
+  }
+
+  # return
+  return(val_ts)
+}
+
+
 #' @title Mean regional pressure
 #' @description get average pressure across mask. Defined as highest force in
 #' mask over maximum contact area
@@ -3221,6 +3229,21 @@ force_peak <- function(pressure_data_, pressure_data, sens_mask_df, mask) {
 
   # return
   return(val)
+}
+
+#' @title Force time series
+#' @description Calculate force per frame
+#' @noRd
+
+force_ts <- function(pressure_data_, pressure_data, sens_mask_df, mask) {
+  force <- rep(NA, nrow(pressure_data_))
+  for (i in 1:nrow(pressure_data_)) {
+    P <- pressure_data_[i, ] * pressure_data[[3]] * 1000
+    force[i] <- sum(P * sens_mask_df[, mask])
+  }
+
+  # return
+  return(force)
 }
 
 
