@@ -1913,7 +1913,11 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
       x <- st_intersects(masks[[mask]], sens_poly[[j]])
       if (identical(x[[1]], integer(0)) == FALSE) {
         y <- st_intersection(masks[[mask]], sens_poly[[j]])
-        sens_mask_df[j, mask] <- st_area(y) / pressure_data[[3]][j]
+        if (pressure_data[[2]] == "pedar") {
+          sens_mask_df[j, mask] <- st_area(y) / st_area(sens_poly[[j]])
+        } else {
+          sens_mask_df[j, mask] <- st_area(y) / pressure_data[[3]][j]
+        }
       }
     }
   }
