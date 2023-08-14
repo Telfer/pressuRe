@@ -298,14 +298,45 @@ load_pliance <- function(pressure_filepath) {
   sens_areas <- sensor_area(sens_array)
 
   # if sensors are all same size and rectilinear, make max matrix
-  if (unique(sens_areas == 1)) {
+  if (length(unique(signif(sens_areas, 6))) == 1) {
+    # make grid based on sensor sizes
+    x_max <- max(sens_array$x)
+    x_min <- min(sens_array$x)
+    y_max <- max(sens_array$y)
+    y_min <- min(sens_array$y)
+    sens_1 <- sens_array %>% filter(id == 1)
+    base_x <- max(sens_1$x) - min(sens_1$x)
+    base_y <- max(sens_1$y) - min(sens_1$y)
+    n_rows <- round(y_max / base_y)
+    n_cols <- round(x_max / base_x)
 
-  }
+    # sensor centroids
+    sens_poly <- sens_df_2_polygon(sens_array)
+    centroids <- data.frame(x = double(), y = double())
+    for (sens in 1:length(sens_poly)) {
+      centroids[sens, ] <- st_coordinates(st_centroid(sens_poly[[sens]]))
+    }
+
+    # find which grid square each sensor falls in and map to matrix
+    pressure_max <- apply(pressure_array, 2, max)
+    max_mat <- matrix(NA, nrow = n_rows, ncol = n_cols)
+    for (i in 1:nrow(centroids)) {
+      # col
+      mat_col <- ceiling((centroids[i, 1] / x_max) * n_cols)
+
+      # row
+      mat_row <- (n_rows + 1) - ceiling((centroids[i, 2] / y_max) * n_rows)
+
+      # map to matrix
+      max_mat[mat_row, mat_col] <- pressure_max[i]
+    }
+  } else {max_mat <- NA}
 
   # return
   return(list(pressure_array = pressure_array, pressure_system = "pliance",
               sens_size = sens_areas, time = time, masks = NULL,
-              events = NULL, sensor_polygons = sens_array, max_matrix = NA))
+              events = NULL, sensor_polygons = sens_array,
+              max_matrix = max_mat))
 }
 
 
@@ -779,7 +810,8 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 
 auto_detect_side <- function(pressure_data) {
   # throw error if pedar data
-  if (!(pressure_data[[2]] == "emed" | pressure_data[[2]] == "footscan"))
+  if (!(pressure_data[[2]] == "emed" | pressure_data[[2]] == "footscan" |
+        pressure_data[[2]] == "pliance"))
     stop("This function currently only works for pressure plate data")
 
   # Bounding box
@@ -1497,7 +1529,7 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 
   ## full
   if (masking_scheme == "automask_novel") {
-    if (pressure_data[[2]] != "emed")
+    if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
       stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, "automask_novel", plot = FALSE)
   }
