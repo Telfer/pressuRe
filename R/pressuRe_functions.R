@@ -284,15 +284,18 @@ load_pliance <- function(pressure_filepath) {
   ## remove MVP and MPP lines if present
   y <- y[-(which(str_detect(y, "MVP")))]
   y <- y[-(which(str_detect(y, "MPP")))]
-  pressure_array <- as.matrix(read.table(textConnection(y), sep = ""))
-  pressure_array <- pressure_array[, 2:ncol(pressure_array)]
+  pressure_array_full <- as.matrix(read.table(textConnection(y), sep = ""))
+  pressure_array_full <- pressure_array_full[, 2:ncol(pressure_array_full)]
+  active_sensors <- which(colSums(pressure_array_full) > 0)
+  pressure_array <- pressure_array_full[, active_sensors]
 
   # sensor coords
   sensor_array_line <- which(grepl("corner", pressure_raw, useBytes = TRUE))[1]
   sensor_array <- pressure_raw[(sensor_array_line + 1):(sensor_array_line + 8)]
   sensor_array <- read.table(textConnection(sensor_array), sep = "")
   sensor_array <- t(sensor_array[, 2:ncol(sensor_array)]) / 100
-  sens_array <- sensor_2_polygon2(sensor_array)
+  sens_array_full <- sensor_2_polygon2(sensor_array)
+  sens_array <- sens_array_full %>% filter(id %in% active_sensors)
 
   # sensor areas
   sens_areas <- sensor_area(sens_array)
@@ -300,25 +303,25 @@ load_pliance <- function(pressure_filepath) {
   # if sensors are all same size and rectilinear, make max matrix
   if (length(unique(signif(sens_areas, 6))) == 1) {
     # make grid based on sensor sizes
-    x_max <- max(sens_array$x)
-    x_min <- min(sens_array$x)
-    y_max <- max(sens_array$y)
-    y_min <- min(sens_array$y)
-    sens_1 <- sens_array %>% filter(id == 1)
+    x_max <- max(sens_array_full$x)
+    x_min <- min(sens_array_full$x)
+    y_max <- max(sens_array_full$y)
+    y_min <- min(sens_array_full$y)
+    sens_1 <- sens_array_full %>% filter(id == 1)
     base_x <- max(sens_1$x) - min(sens_1$x)
     base_y <- max(sens_1$y) - min(sens_1$y)
     n_rows <- round(y_max / base_y)
     n_cols <- round(x_max / base_x)
 
     # sensor centroids
-    sens_poly <- sens_df_2_polygon(sens_array)
+    sens_poly <- sens_df_2_polygon(sens_array_full)
     centroids <- data.frame(x = double(), y = double())
     for (sens in 1:length(sens_poly)) {
       centroids[sens, ] <- st_coordinates(st_centroid(sens_poly[[sens]]))
     }
 
     # find which grid square each sensor falls in and map to matrix
-    pressure_max <- apply(pressure_array, 2, max)
+    pressure_max <- apply(pressure_array_full, 2, max)
     max_mat <- matrix(NA, nrow = n_rows, ncol = n_cols)
     for (i in 1:nrow(centroids)) {
       # col
@@ -1158,7 +1161,7 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
     fp <- footprint(pressure_data, variable = variable, frame)
 
     # combine with pressure values
-    ids <- c(1:length(fp))
+    ids <- unique(pressure_data[[7]]$id)#c(1:length(fp))
     vals <- data.frame(id = ids, value = fp)
 
     # merge value and coordinate frames
@@ -1513,7 +1516,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' foot_side = "auto", plot = FALSE)
+#' foot_side = "auto", plot = TRUE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -2604,7 +2607,7 @@ sensor_area <- function(sensor_df) {
   # get areas
   areas <- rep(NA, length(n_sensors))
   for (sens in seq_along(n_sensors)) {
-    sens_mat <- as.matrix(sensor_df %>% filter(id == sens))[, c(1, 2)]
+    sens_mat <- as.matrix(sensor_df %>% filter(id == n_sensors[sens]))[, c(1, 2)]
     areas[sens] <- st_area(st_polygon(list(sens_mat)))
   }
 
@@ -2856,108 +2859,106 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @importFrom sf st_cast st_join st_sf
 #' @noRd
 
-toe_line <- function(pressure_data) {
+toe_line <- function(pressure_data, side) {
   # global variables
-  clusterID <- NULL
+  #clusterID <- NULL
 
   # get max footprint and take top half
   pf_max <- pressure_data[[8]]
   pf_max_top <- pf_max[1:(round(nrow(pf_max)) / 2), ]
   pressure_data2 <- pressure_data
   pressure_data2[[1]] <- pf_max_top
-  act_sens_vec <- which(pf_max_top > 0)
+  offset_row <- nrow(pf_max) - nrow(pf_max_top)
+  #act_sens_vec <- which(pf_max_top > 0)
 
   # remove small islands (toes)
   ## make polygon df
-  polygons <- sens_df_2_polygon(pressure_data[[7]])
-  pg_df <- data.frame(sens_id = 1:length(polygons))
-  pg_df$geometry <- st_sfc(polygons)
-  pg_df <- st_as_sf(pg_df)
+  #polygons <- sens_df_2_polygon(pressure_data[[7]])
+  #pg_df <- data.frame(sens_id = 1:length(polygons))
+  #pg_df$geometry <- st_sfc(polygons)
+  #pg_df <- st_as_sf(pg_df)
 
   ## find islands
-  geometries <- st_cast(st_union(st_buffer(pg_df, 0.0001)), "POLYGON")
-  dissolved <- st_sf(geometries)
-  dissolved$clusterID = 1:length(geometries)
-  pg_df <- st_join(pg_df, dissolved)
+  #geometries <- st_cast(st_union(st_buffer(pg_df, 0.0001)), "POLYGON")
+  #dissolved <- st_sf(geometries)
+  #dissolved$clusterID = 1:length(geometries)
+  #pg_df <- st_join(pg_df, dissolved)
 
   ## remove small islands
-  pg_df <- pg_df %>% filter(clusterID == which.max(table(pg_df$clusterID)))
-  sens_keep <- pg_df[["sens_id"]]
-  sens_keep <- act_sens_vec[sens_keep]
-  pf_max_top_vec <- c(pf_max_top)
-  zeros <- c(1:length(pf_max_top_vec))
-  zeros <- zeros[!zeros %in% sens_keep]
-  pf_max_top_vec[zeros] <- 0
-  pf_max_top2 <- matrix(pf_max_top_vec, nrow = nrow(pf_max_top), ncol = ncol(pf_max_top))
+  #pg_df <- pg_df %>% filter(clusterID == which.max(table(pg_df$clusterID)))
+  #sens_keep <- pg_df[["sens_id"]]
+  #sens_keep <- act_sens_vec[sens_keep]
+  #pf_max_top_vec <- c(pf_max_top)
+  #zeros <- c(1:length(pf_max_top_vec))
+  #zeros <- zeros[!zeros %in% sens_keep]
+  #pf_max_top_vec[zeros] <- 0
+  #pf_max_top2 <- matrix(pf_max_top_vec, nrow = nrow(pf_max_top), ncol = ncol(pf_max_top))
 
-  # which cols had toes removed
-  good_cols <- rep(NA, length.out = ncol(pf_max))
-  for (i in 1:ncol(pf_max)) {
-    og <- which.max(pf_max_top[, i] > 0)
-    og_rm <- which.max(pf_max_top2[, i] > 0)
-    if (og != og_rm) {good_cols[i] <- og_rm - 2}
+  # toe line
+  pf_max_top[pf_max_top < 50] <- 0
+  r <- raster(pf_max_top)
+  unique(pressure_data[[7]]$id)[1]
+  sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[1])
+  base_x <- max(sens_1$x) - min(sens_1$x)
+  base_y <- max(sens_1$y) - min(sens_1$y)
+  extent(r) <- c(min(pressure_data[[7]][, 1]),
+                 base_x * ncol(pf_max_top),
+                 min(pressure_data[[7]][, 2]),
+                 base_y * nrow(pf_max_top))
+  #crs(r) <- "+proj=utm +units=m"
+
+  # start and end points
+  active_cols <- which(colSums(pf_max_top) > 0)
+  active_rows <- which(rowSums(pf_max_top) > 0)
+  active_row_top <- active_rows[1]
+  active_row_bottom <- active_rows[length(active_rows)]
+  row_25 <- active_row_top + ((active_row_bottom - active_row_top) * 0.7)
+  row_70 <- active_row_top + ((active_row_bottom - active_row_top) * 0.3)
+
+  ## start point
+  start_y <- (nrow(pf_max_top) * base_y) - (row_70 * base_y)
+  end_y <- (nrow(pf_max_top) * base_y) - (row_25 * base_y)
+  if (side == "LEFT") {
+    start_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
+    end_x <- (active_cols[1] * base_x) - base_x / 2
+    start <- c(start_x, start_y)
+    end <- c(end_x, end_y)
+  }
+  if (side == "RIGHT") {
+    start_x <- (active_cols[1] * base_x) + base_x / 2
+    end_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
+    start <- c(start_x, start_y)
+    end <- c(end_x, end_y)
   }
 
-  # remove negative values
-  good_cols[good_cols < 1] <- NA
+  # line
+  heightDiff <- function(x){x[2] - x[1]}
+  suppressWarnings(hd <- transition(r, heightDiff, 8, symm = FALSE))
+  slope <- geoCorrection(hd, scl = FALSE)
+  adj <- adjacent(r, cells=1:ncell(r), pairs = TRUE, directions = 8)
+  speed <- slope
+  speed[adj] <- exp(-3.5 * abs(slope[adj] + 0.05))
+  x <- geoCorrection(speed, scl=FALSE)
+  AtoB <- shortestPath(x, start, end, output = "SpatialLines")
+  toe_line_mat <- st_coordinates(st_as_sf(AtoB))[, c(1, 2)]
 
-  # which of the remaining cols have minima between two maxima
-  remaining_cols <- which(is.na(good_cols))
-  for (i in seq_along(remaining_cols)) {
-    mins <- which(rollapply(as.zoo(pf_max_top[, remaining_cols[i]]), 3,
-                            function(x) which.min(x) == 2) == TRUE)
-    mins_rev <- which(rollapply(as.zoo(rev(pf_max_top[, remaining_cols[i]])), 3,
-                                function(x) which.min(x) == 2) == TRUE)
-    maxs <- which(rollapply(as.zoo(pf_max_top[, remaining_cols[i]]), 3,
-                            function(x) which.max(x) == 2) == TRUE)
-    if (length(maxs) >= 2) {
-      if (mins[1] > maxs[1] & mins[1] < maxs[2]) {
-        reps <- rle(pf_max_top[(mins[1] + 1):ncol(pf_max_top), remaining_cols[i]])$lengths[1]
-        if (reps > 1) {
-          good_cols[i] <- mins[1] + (reps / 2)
-        } else {good_cols[remaining_cols[i]] <- mins[1]}
-      }
-    }
-  }
-
-  # check points are less than 1/3 from front of foot but > 15%
-  ff_dist <- round(nrow(pf_max) / 6)
-  ff_prox <- round(nrow(pf_max) / 12)
-  remaining_cols2 <- which(!is.na(good_cols))
-  for (fp_col in seq_along(remaining_cols2)) {
-    if ((good_cols[remaining_cols2[fp_col]] - (which(pf_max_top[, remaining_cols2[fp_col]] > 0)[1])) >= ff_dist) {
-      good_cols[remaining_cols2[fp_col]] <- NA
-    }
-  }
-  remaining_cols3 <- which(!is.na(good_cols))
-  for (fp_col in seq_along(remaining_cols3)) {
-    if ((good_cols[remaining_cols3[fp_col]] - (which(pf_max_top[, remaining_cols3[fp_col]] > 0)[1])) < ff_prox) {
-      good_cols[remaining_cols3[fp_col]] <- NA
-    }
-  }
-
-  # coords
-  toe_line_mat <- matrix(NA, length(good_cols), 2)
-  dims <- c(0.005, 0.005)
-  for (i in 1:length(good_cols)) {
-    if (is.na(good_cols[i]) != TRUE) {
-      xy <- c(-(dims[2] / 2) + (dims[2] * i),
-              (-(dims[1] / 2) + (nrow(pf_max) * dims[1]) - dims[1] * good_cols[i]))
-      toe_line_mat[i, ] <- xy
-    }
-  }
-  toe_line_mat <- na.omit(toe_line_mat)
+  # trim to widest
+  toe_line_mat <- toe_line_mat[which.max(toe_line_mat[, 1]):which.min(toe_line_mat[, 1]), ]
 
   # extend ends
-  toe_line_mat <- rbind(c(toe_line_mat[1, 1] - 1, toe_line_mat[1, 2]), toe_line_mat,
-                        c(toe_line_mat[nrow(toe_line_mat), 1] + 1,
-                          toe_line_mat[nrow(toe_line_mat), 2]))
+  if (side == "LEFT") {
+    toe_line_mat <- rbind(c(toe_line_mat[1, 1] + 1, toe_line_mat[1, 2]), toe_line_mat,
+                          c(toe_line_mat[nrow(toe_line_mat), 1] - 1,
+                            toe_line_mat[nrow(toe_line_mat), 2]))
+  }
+  if (side == "RIGHT") {
+    toe_line_mat <- rbind(c(toe_line_mat[1, 1] + 1, toe_line_mat[1, 2]), toe_line_mat,
+                          c(toe_line_mat[nrow(toe_line_mat), 1] - 1,
+                            toe_line_mat[nrow(toe_line_mat), 2]))
+  }
 
-  #toe_path_df <- as.data.frame(cbind(toe_line_mat[, 1], toe_line_mat[, 2]))
-  #colnames(toe_path_df) <- c("x", "y")
-  #g <- plot_pressure(pressure_data)
-  #g <- g + geom_path(data = toe_path_df, aes(x = x, y = y), color = "red")
-  #g
+  # add offset distance
+  toe_line_mat[, 2] <- toe_line_mat[, 2] + (offset_row * base_y)
 
   # return
   return(toe_line_mat)
@@ -3457,7 +3458,7 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto",
                       forefoot_mask = ff_mask)
   } else if (mask_scheme == "automask_novel") {
     ## toe line
-    toe_line_mat <- toe_line(pressure_data)
+    toe_line_mat <- toe_line(pressure_data, side)
 
     ## toe cut polygons
     toe_poly_prox <- st_line2polygon(as.matrix(toe_line_mat), 1, "-Y")
