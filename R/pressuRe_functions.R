@@ -258,6 +258,7 @@ load_pedar <- function(pressure_filepath) {
 #' pliance_data <- system.file("extdata", "pliance_test.asc", package = "pressuRe")
 #' pressure_data <- load_pliance(pliance_data)
 #' @importFrom stringr str_split str_trim
+#' @importFrom sf st_centroid
 #' @export
 
 load_pliance <- function(pressure_filepath) {
@@ -269,6 +270,9 @@ load_pliance <- function(pressure_filepath) {
   ## extension is correct
   if (str_split(basename(pressure_filepath), "\\.")[[1]][2] != "asc")
     stop("incorrect file extension, expected .asc")
+
+  # global variables
+  id <- NULL
 
   # Read unformatted emed data
   pressure_raw <- readLines(pressure_filepath, warn = FALSE)
@@ -1516,7 +1520,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' foot_side = "auto", plot = TRUE)
+#' foot_side = "auto", plot = FALSE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -2857,11 +2861,13 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @importFrom zoo as.zoo rollapply
 #' @importFrom stats na.omit
 #' @importFrom sf st_cast st_join st_sf
+#' @importFrom raster raster adjacent extent ncell
+#' @importFrom gdistance transition geoCorrection shortestPath
 #' @noRd
 
 toe_line <- function(pressure_data, side) {
   # global variables
-  #clusterID <- NULL
+  id <- NULL
 
   # get max footprint and take top half
   pf_max <- pressure_data[[8]]
@@ -2901,10 +2907,10 @@ toe_line <- function(pressure_data, side) {
   sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[1])
   base_x <- max(sens_1$x) - min(sens_1$x)
   base_y <- max(sens_1$y) - min(sens_1$y)
-  extent(r) <- c(min(pressure_data[[7]][, 1]),
-                 base_x * ncol(pf_max_top),
-                 min(pressure_data[[7]][, 2]),
-                 base_y * nrow(pf_max_top))
+  raster::extent(r) <- c(min(pressure_data[[7]][, 1]),
+                         base_x * ncol(pf_max_top),
+                         min(pressure_data[[7]][, 2]),
+                         base_y * nrow(pf_max_top))
   #crs(r) <- "+proj=utm +units=m"
 
   # start and end points

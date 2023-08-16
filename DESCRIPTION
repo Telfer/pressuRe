@@ -12,11 +12,13 @@ RoxygenNote: 7.2.3
 Imports: 
     abind,
     dplyr,
+    gdistance,
     ggmap,
     ggplot2,
     magick,
     magrittr,
     pracma,
+    raster,
     readxl,
     scales,
     sf,
