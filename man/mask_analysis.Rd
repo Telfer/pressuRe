@@ -23,7 +23,8 @@ proportion of the sensor that falls within the mask border}
 
 \item{variable}{String. Variable to be determined. "press_peak_sensor",
 "press_peak_mask", "contact_area_peak", "pti_1", "pti_2",
-"force_time_integral", "force_peak", "dpli"}
+"force_time_integral", "force_peak", "dpli", "press_peak_sensor_ts", "force_ts".
+Variables ending in "_ts" produce time series data}
 
 \item{pressure_units}{String. Default "kPa". Other options: "MPa", "Ncm2"
 (Newtons per square centimeter)}

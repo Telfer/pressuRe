@@ -1,3 +1,8 @@
+# pressuRe 0.2.2
+* some improvements to novel_automask in create_mask_auto
+* added support for time series in mask_analysis 
+* added support for xsensor insoles
+
 # pressuRe 0.2
 
 * Support for pliance data added 

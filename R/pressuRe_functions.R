@@ -1909,7 +1909,8 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
 #'   proportion of the sensor that falls within the mask border
 #' @param variable String. Variable to be determined. "press_peak_sensor",
 #' "press_peak_mask", "contact_area_peak", "pti_1", "pti_2",
-#' "force_time_integral", "force_peak", "dpli"
+#' "force_time_integral", "force_peak", "dpli", "press_peak_sensor_ts", "force_ts".
+#' Variables ending in "_ts" produce time series data
 #' @param pressure_units String. Default "kPa". Other options: "MPa", "Ncm2"
 #' (Newtons per square centimeter)
 #' @param area_units String. Default is "cm2" (square centimeters). Other
@@ -2858,11 +2859,11 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @description Calculates line proximal to toes
 #' @param pressure_data List. First item should be a 3D array covering each
 #' timepoint of the measurement. z dimension represents time
-#' @importFrom zoo as.zoo rollapply
-#' @importFrom stats na.omit
 #' @importFrom sf st_cast st_join st_sf
 #' @importFrom raster raster adjacent extent ncell
 #' @importFrom gdistance transition geoCorrection shortestPath
+#' @importFrom dplyr distinct group_by mutate n summarize across everything
+#' @importFrom stats var
 #' @noRd
 
 toe_line <- function(pressure_data, side) {
@@ -2871,54 +2872,63 @@ toe_line <- function(pressure_data, side) {
 
   # get max footprint and take top half
   pf_max <- pressure_data[[8]]
-  pf_max_top <- pf_max[1:(round(nrow(pf_max)) / 2), ]
-  pressure_data2 <- pressure_data
-  pressure_data2[[1]] <- pf_max_top
-  offset_row <- nrow(pf_max) - nrow(pf_max_top)
-  #act_sens_vec <- which(pf_max_top > 0)
 
-  # remove small islands (toes)
-  ## make polygon df
-  #polygons <- sens_df_2_polygon(pressure_data[[7]])
-  #pg_df <- data.frame(sens_id = 1:length(polygons))
-  #pg_df$geometry <- st_sfc(polygons)
-  #pg_df <- st_as_sf(pg_df)
-
-  ## find islands
-  #geometries <- st_cast(st_union(st_buffer(pg_df, 0.0001)), "POLYGON")
-  #dissolved <- st_sf(geometries)
-  #dissolved$clusterID = 1:length(geometries)
-  #pg_df <- st_join(pg_df, dissolved)
-
-  ## remove small islands
-  #pg_df <- pg_df %>% filter(clusterID == which.max(table(pg_df$clusterID)))
-  #sens_keep <- pg_df[["sens_id"]]
-  #sens_keep <- act_sens_vec[sens_keep]
-  #pf_max_top_vec <- c(pf_max_top)
-  #zeros <- c(1:length(pf_max_top_vec))
-  #zeros <- zeros[!zeros %in% sens_keep]
-  #pf_max_top_vec[zeros] <- 0
-  #pf_max_top2 <- matrix(pf_max_top_vec, nrow = nrow(pf_max_top), ncol = ncol(pf_max_top))
-
-  # toe line
-  pf_max_top[pf_max_top < 50] <- 0
-  r <- raster(pf_max_top)
-  unique(pressure_data[[7]]$id)[1]
+  # make outside values high
+  ## sensor centroids
   sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[1])
   base_x <- max(sens_1$x) - min(sens_1$x)
   base_y <- max(sens_1$y) - min(sens_1$y)
-  raster::extent(r) <- c(min(pressure_data[[7]][, 1]),
-                         base_x * ncol(pf_max_top),
-                         min(pressure_data[[7]][, 2]),
-                         base_y * nrow(pf_max_top))
-  #crs(r) <- "+proj=utm +units=m"
+  sens_rows_all <- nrow(pf_max)
+  sens_cols_all <- ncol(pf_max)
+  centroid_df <- data.frame(x = rep(seq(base_x / 2, by = base_x, length.out = sens_cols_all),
+                                    each = sens_rows_all),
+                            y = rep(seq((base_y * sens_rows_all) - (base_y / 2),
+                                        by = base_y * -1, length.out = sens_rows_all),
+                                    times = sens_cols_all))
+  centroids <- st_as_sf(centroid_df, coords = c("x", "y"))
 
-  # start and end points
-  active_cols <- which(colSums(pf_max_top) > 0)
-  active_rows <- which(rowSums(pf_max_top) > 0)
+  ## chull
+  sens_coords_df <- pressure_data[[7]] %>%
+    st_as_sf(coords = c("x", "y"))
+  fp_chull <- st_convex_hull(st_combine(sens_coords_df))
+
+  ## in or out
+  pt_inter <- st_intersects(fp_chull, centroids)[[1]]
+
+  ## increase resistance
+  #inds <- 1:length(pf_max)
+  #inds <- inds[!inds %in% pt_inter]
+  #pf_max_v <- c(pf_max)
+  #pf_max_v[inds] <- 1000
+  #pf_max <- matrix(pf_max_v, nrow = sens_rows_all, ncol = sens_cols_all)
+
+  # take top half
+  pf_max_top <- pf_max[1:(round(nrow(pf_max)) / 2), ]
+  offset_row <- nrow(pf_max) - nrow(pf_max_top)
+
+  # remove islands
+  ## get vertex coords
+  verts <- pressure_data[[7]]
+
+  ## remove duplicates (id included)
+  verts <- verts %>% distinct()
+
+  ## count duplicates (coords only) and add count to df
+  verts_ <- verts[, c(1, 2)]
+  verts_ <- verts_ %>% group_by(across(everything())) %>%
+    mutate(n = n())
+  verts <- cbind(verts, n = verts_$n)
+
+  ## sum sensor duplicates
+  sens_verts <- verts %>% group_by(id) %>% summarize(ns = sum(n))
+
+  # toe line
+  ## start and end points
+  active_cols <- which(apply(pf_max_top, 2, var) != 0)
+  active_rows <- which(apply(pf_max_top, 1, var) != 0)
   active_row_top <- active_rows[1]
   active_row_bottom <- active_rows[length(active_rows)]
-  row_25 <- active_row_top + ((active_row_bottom - active_row_top) * 0.7)
+  row_25 <- active_row_top + ((active_row_bottom - active_row_top) * 0.6)
   row_70 <- active_row_top + ((active_row_bottom - active_row_top) * 0.3)
 
   ## start point
@@ -2937,15 +2947,33 @@ toe_line <- function(pressure_data, side) {
     end <- c(end_x, end_y)
   }
 
+  # make sure start and end are low
+  start_ind <- c((start[1] + (base_x / 2)) / base_x,
+                 ceiling(((nrow(pf_max_top) * base_y) - start[2]) / base_y) + 1)
+  end_ind <- c((end[1] + (base_x / 2)) / base_x,
+               ceiling(((nrow(pf_max_top) * base_y) - end[2]) / base_y) + 1)
+  #pf_max_top[start_ind[2], start_ind[1]] <- 0
+  #pf_max_top[end_ind[2], end_ind[1]] <- 0
+  #pf_max_top[start_ind[2], start_ind[1] -1] <- 1000
+  #pf_max_top[start_ind[2] + 1, start_ind[1] - 1] <- 1000
+
+  # make raster
+  pf_max_top <- pf_max_top / 100000
+  r <- raster(pf_max_top)
+  raster::extent(r) <- c(min(pressure_data[[7]][, 1]),
+                         base_x * ncol(pf_max_top),
+                         min(pressure_data[[7]][, 2]),
+                         base_y * nrow(pf_max_top))
+
   # line
   heightDiff <- function(x){x[2] - x[1]}
-  suppressWarnings(hd <- transition(r, heightDiff, 8, symm = FALSE))
-  slope <- geoCorrection(hd, scl = FALSE)
-  adj <- adjacent(r, cells=1:ncell(r), pairs = TRUE, directions = 8)
+  hd <- transition(r, heightDiff, 8, symm = FALSE)
+  slope <- geoCorrection(hd, type = "c")
+  adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)
   speed <- slope
-  speed[adj] <- exp(-3.5 * abs(slope[adj] + 0.05))
-  x <- geoCorrection(speed, scl=FALSE)
-  AtoB <- shortestPath(x, start, end, output = "SpatialLines")
+  speed[adj] <- 6 * exp(-3.5 * abs(slope[adj]))
+  Conductance <- geoCorrection(speed)
+  AtoB <- shortestPath(Conductance, start, end, output = "SpatialLines")
   toe_line_mat <- st_coordinates(st_as_sf(AtoB))[, c(1, 2)]
 
   # trim to widest
