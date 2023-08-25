@@ -2969,7 +2969,7 @@ toe_line <- function(pressure_data, side) {
 
   # line
   heightDiff <- function(x){x[2] - x[1]}
-  hd <- transition(r, heightDiff, 8, symm = FALSE)
+  hd <- suppressWarnings(transition(r, heightDiff, 8, symm = FALSE))
   slope <- geoCorrection(hd, type = "c")
   adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)
   speed <- slope
@@ -3494,17 +3494,6 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto",
                       midfoot_mask = mf_mask,
                       forefoot_mask = ff_mask)
   } else if (mask_scheme == "automask_novel") {
-    ## toe line
-    toe_line_mat <- toe_line(pressure_data, side)
-
-    ## toe cut polygons
-    toe_poly_prox <- st_line2polygon(as.matrix(toe_line_mat), 1, "-Y")
-    toe_poly_dist <- st_line2polygon(as.matrix(toe_line_mat), 1, "+Y")
-
-    ## make masks
-    toe_mask <- st_difference(fp_chull, toe_poly_prox)
-    ff_mask <- st_difference(ff_mask, toe_poly_dist)
-
     # Define angles for dividing lines between metatarsals
     ## get edge lines
     edges <- edge_lines(pressure_data, side)
@@ -3546,6 +3535,34 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto",
     MT_45_line <- rot_line(edges[[1]], MT_45_alpha, med_lat_int)
     MT_45_poly_lat <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, lat_dir)
     MT_45_poly_med <- st_line2polygon(st_coordinates(MT_45_line)[, 1:2], 1, med_dir)
+
+    ## simplify toe line
+    ### toe line
+    toe_line_mat <- toe_line(pressure_data, side)
+    HX_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_hx_line)
+    MT12_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_12_line)
+    MT23_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_23_line)
+    MT34_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_34_line)
+    MT45_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_45_line)
+    MT5_toe_pt <- st_intersection(st_linestring(toe_line_mat), edges[[2]])
+    toe_line_mat_simple <- rbind(MT5_toe_pt, MT45_toe_pt, MT34_toe_pt,
+                                 MT23_toe_pt, MT12_toe_pt, HX_toe_pt)
+    if (side == "RIGHT") {
+      toe_line_mat_simple <- rbind(toe_line_mat[1, ], toe_line_mat_simple,
+                                   toe_line_mat[nrow(toe_line_mat), ])
+    }
+    if (side == "LEFT") {
+      toe_line_mat_simple <- rbind(toe_line_mat[nrow(toe_line_mat), ],
+                                   toe_line_mat_simple, toe_line_mat[1, ])
+    }
+
+    ## toe cut polygons
+    toe_poly_prox <- st_line2polygon(as.matrix(toe_line_mat_simple), 1, "-Y")
+    toe_poly_dist <- st_line2polygon(as.matrix(toe_line_mat_simple), 1, "+Y")
+
+    ## make masks
+    toe_mask <- st_difference(fp_chull, toe_poly_prox)
+    ff_mask <- st_difference(ff_mask, toe_poly_dist)
 
     ## make met masks
     hal_mask <- st_difference(toe_mask, MT_hx_poly_lat)
