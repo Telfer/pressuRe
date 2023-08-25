@@ -1420,6 +1420,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
       # preview mask
       if (plot == TRUE) {
         g <- g + geom_path(data = mask, aes(x, y), color = "blue", linewidth = 1)
+        g <- g + geom_point(data = mask, aes(x, y), color = "blue", size = 2)
         print(g)
       }
 
@@ -1462,6 +1463,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
     if (plot == TRUE) {
       mask <- data.frame(st_coordinates(sensel_polygon)[, 1:2])
       g <- g + geom_path(data = mask, aes(X, Y), color = "blue", linewidth = 1)
+      g <- g + geom_point(data = mask, aes(X, Y), color = "blue", size = 2)
       print(g)
     }
 
@@ -3144,8 +3146,9 @@ plot_masks <- function(pressure_data,
 
   # plot original mask data
   for (n_mask in visual_list) {
-    g <- g + geom_path(data = data.frame(st_coordinates(pressure_data[[5]][[n_mask]])[,1:2]),
-                       aes(X, Y), color = "red", linewidth = 1)
+    mask_plt_df <- data.frame(st_coordinates(pressure_data[[5]][[n_mask]])[,1:2])
+    g <- g + geom_path(data = mask_plt_df, aes(X, Y), color = "red", linewidth = 1)
+    g <- g + geom_point(data = mask_plt_df, aes(X, Y), color = "red", size = 2)
   }
   print(g)
 
