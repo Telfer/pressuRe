@@ -993,10 +993,8 @@ cop <- function(pressure_data) {
   # COP coordinates in x direction
   x_coord <- c()
   for (i in 1:nrow(pressure_data[[1]])) {
-    #p_total <- sum(col_total[, i])
     p_total <- sum(pressure_data[[1]][i, ])
     x_coord[i] <- (sum(centroids$x * pressure_data[[1]][i, ])) / p_total
-    #x_coord[i] <- (sum(sens_spacing_x * col_total[, i])) / p_total
   }
 
   # COP coordinates in y direction
@@ -3397,8 +3395,8 @@ sensor_centroid <- function(pressure_data) {
   sensors <- unique(pressure_data[[7]][, 3])
   centroids <- data.frame(x = rep(NA, length(sensors)),
                           y = rep(NA, length(sensors)))
-  for (sens in 1:length(sensors)) {
-    mat <- pressure_data[[7]] %>% filter(id == sens)
+  for (sens in seq_along(sensors)) {
+    mat <- pressure_data[[7]] %>% filter(id == sensors[sens])
     centroids[sens, ] <- colMeans(mat[1:(nrow(mat) - 1), c(1, 2)])
   }
   return(centroids)
