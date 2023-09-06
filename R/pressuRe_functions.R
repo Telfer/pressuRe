@@ -1921,7 +1921,7 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
-#' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor_ts")
+#' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
 #' @importFrom sf st_intersects st_geometry st_area
 #' @importFrom pracma trapz
 #' @export
@@ -2584,9 +2584,9 @@ sensor_2_polygon4 <- function() {
 sens_df_2_polygon <- function(sens_polygons) {
   id <- NULL
   sensor_polys <- list()
-  n_sens <- length(unique(sens_polygons[, 3]))
-  for (sens in 1:n_sens) {
-    s_df <- sens_polygons %>% filter(id == sens)
+  sens_n <- unique(sens_polygons[, 3])
+  for (sens in seq_along(sens_n)) {
+    s_df <- sens_polygons %>% filter(id == sens_n[sens])
     sensor_polys[[sens]] <- st_polygon(list(matrix(c(s_df[1, 1], s_df[2, 1],
                                                      s_df[3, 1], s_df[4, 1],
                                                      s_df[1, 1], s_df[1, 2],
