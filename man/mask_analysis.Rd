@@ -43,5 +43,5 @@ Analyze masked regions of pressure data
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
-mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor_ts")
+mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
 }

@@ -8,6 +8,7 @@ create_mask_auto(
   pressure_data,
   masking_scheme,
   foot_side = "auto",
+  res_value = 1e+05,
   plot = TRUE
 )
 }
@@ -30,6 +31,10 @@ hindfoot, forefoot, hallux, and lesser toes- https://jfootankleres.biomedcentral
 
 \item{foot_side}{String. "RIGHT", "LEFT", or "auto". Auto uses
 auto_detect_side function}
+
+\item{res_value}{Numeric. Adjusting this can help if the line between the forefoot and toes
+isn't correct. Default is 100000. This line is calculated using a least cost function and this
+parameter basically adjusts the resistance of the pressure value for that algorithm}
 
 \item{plot}{Logical. Whether to play the animation}
 }

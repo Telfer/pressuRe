@@ -1505,6 +1505,9 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #'  MTPJ2-3, MTPJ4-5, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20
 #' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses
 #' auto_detect_side function
+#' @param res_value Numeric. Adjusting this can help if the line between the forefoot and toes
+#' isn't correct. Default is 100000. This line is calculated using a least cost function and this
+#' parameter basically adjusts the resistance of the pressure value for that algorithm
 #' @param plot Logical. Whether to play the animation
 #' @return List. Masks are added to pressure data variable
 #' \itemize{
@@ -1526,7 +1529,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
-                             plot = TRUE) {
+                             res_value = 100000, plot = TRUE) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
@@ -1538,7 +1541,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
   if (masking_scheme == "automask_novel") {
     if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
       stop("automask is not compatible with this type of data")
-    pressure_data <- automask(pressure_data, "automask_novel", plot = FALSE)
+    pressure_data <- automask(pressure_data, "automask_novel", res_scale = res_value,
+                              plot = FALSE)
   }
 
   # pedar masks
@@ -2866,45 +2870,22 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @importFrom stats var
 #' @noRd
 
-toe_line <- function(pressure_data, side) {
+toe_line <- function(pressure_data, side, res_scale = 10000) {
   # global variables
   id <- NULL
 
   # get max footprint and take top half
   pf_max <- pressure_data[[8]]
 
-  # make outside values high
-  ## sensor centroids
-  sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[1])
+  # sensor dimensions
+  sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[50])
   base_x <- max(sens_1$x) - min(sens_1$x)
   base_y <- max(sens_1$y) - min(sens_1$y)
-  sens_rows_all <- nrow(pf_max)
-  sens_cols_all <- ncol(pf_max)
-  centroid_df <- data.frame(x = rep(seq(base_x / 2, by = base_x, length.out = sens_cols_all),
-                                    each = sens_rows_all),
-                            y = rep(seq((base_y * sens_rows_all) - (base_y / 2),
-                                        by = base_y * -1, length.out = sens_rows_all),
-                                    times = sens_cols_all))
-  centroids <- st_as_sf(centroid_df, coords = c("x", "y"))
-
-  ## chull
-  sens_coords_df <- pressure_data[[7]] %>%
-    st_as_sf(coords = c("x", "y"))
-  fp_chull <- st_convex_hull(st_combine(sens_coords_df))
-
-  ## in or out
-  pt_inter <- st_intersects(fp_chull, centroids)[[1]]
-
-  ## increase resistance
-  #inds <- 1:length(pf_max)
-  #inds <- inds[!inds %in% pt_inter]
-  #pf_max_v <- c(pf_max)
-  #pf_max_v[inds] <- 1000
-  #pf_max <- matrix(pf_max_v, nrow = sens_rows_all, ncol = sens_cols_all)
 
   # take top half
-  pf_max_top <- pf_max[1:(round(nrow(pf_max)) / 2), ]
+  pf_max_top <- pf_max[1:(floor(nrow(pf_max) / 2)), ]
   offset_row <- nrow(pf_max) - nrow(pf_max_top)
+  offset_distance <- offset_row * base_y
 
   # remove islands
   ## get vertex coords
@@ -2913,57 +2894,32 @@ toe_line <- function(pressure_data, side) {
   ## remove duplicates (id included)
   verts <- verts %>% distinct()
 
-  ## count duplicates (coords only) and add count to df
-  verts_ <- verts[, c(1, 2)]
-  verts_ <- verts_ %>% group_by(across(everything())) %>%
-    mutate(n = n())
-  verts <- cbind(verts, n = verts_$n)
-
-  ## sum sensor duplicates
-  sens_verts <- verts %>% group_by(id) %>% summarize(ns = sum(n))
-
   # toe line
   ## start and end points
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
-  active_rows <- which(apply(pf_max_top, 1, var) != 0)
-  active_row_top <- active_rows[1]
-  active_row_bottom <- active_rows[length(active_rows)]
-  row_25 <- active_row_top + ((active_row_bottom - active_row_top) * 0.6)
-  row_70 <- active_row_top + ((active_row_bottom - active_row_top) * 0.3)
+  row_25 <- round(nrow(pf_max_top) * 0.25)
+  row_70 <- round(nrow(pf_max_top) * 0.7)
 
   ## start point
-  start_y <- (nrow(pf_max_top) * base_y) - (row_70 * base_y)
-  end_y <- (nrow(pf_max_top) * base_y) - (row_25 * base_y)
+  start_y <- offset_distance + (nrow(pf_max_top) * base_y) - (row_25 * base_y)
+  end_y <- offset_distance + (nrow(pf_max_top) * base_y) - (row_70 * base_y)
   if (side == "LEFT") {
     start_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
     end_x <- (active_cols[1] * base_x) - base_x / 2
-    start <- c(start_x, start_y)
-    end <- c(end_x, end_y)
   }
   if (side == "RIGHT") {
-    start_x <- (active_cols[1] * base_x) + base_x / 2
+    start_x <- (active_cols[1] * base_x) - base_x / 2
     end_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
-    start <- c(start_x, start_y)
-    end <- c(end_x, end_y)
   }
-
-  # make sure start and end are low
-  start_ind <- c((start[1] + (base_x / 2)) / base_x,
-                 ceiling(((nrow(pf_max_top) * base_y) - start[2]) / base_y) + 1)
-  end_ind <- c((end[1] + (base_x / 2)) / base_x,
-               ceiling(((nrow(pf_max_top) * base_y) - end[2]) / base_y) + 1)
-  #pf_max_top[start_ind[2], start_ind[1]] <- 0
-  #pf_max_top[end_ind[2], end_ind[1]] <- 0
-  #pf_max_top[start_ind[2], start_ind[1] -1] <- 1000
-  #pf_max_top[start_ind[2] + 1, start_ind[1] - 1] <- 1000
+  start <- c(start_x, start_y)
+  end <- c(end_x, end_y)
 
   # make raster
-  pf_max_top <- pf_max_top / 100000
+  pf_max_top <- pf_max_top / res_scale
   r <- raster(pf_max_top)
-  raster::extent(r) <- c(min(pressure_data[[7]][, 1]),
-                         base_x * ncol(pf_max_top),
-                         min(pressure_data[[7]][, 2]),
-                         base_y * nrow(pf_max_top))
+  raster::extent(r) <- c(0, base_x * ncol(pf_max_top),
+                         offset_distance,
+                         offset_distance + base_y * nrow(pf_max_top))
 
   # line
   heightDiff <- function(x){x[2] - x[1]}
@@ -2977,7 +2933,7 @@ toe_line <- function(pressure_data, side) {
   toe_line_mat <- st_coordinates(st_as_sf(AtoB))[, c(1, 2)]
 
   # trim to widest
-  toe_line_mat <- toe_line_mat[which.max(toe_line_mat[, 1]):which.min(toe_line_mat[, 1]), ]
+  #toe_line_mat <- toe_line_mat[which.max(toe_line_mat[, 1]):which.min(toe_line_mat[, 1]), ]
 
   # extend ends
   if (side == "LEFT") {
@@ -2986,13 +2942,13 @@ toe_line <- function(pressure_data, side) {
                             toe_line_mat[nrow(toe_line_mat), 2]))
   }
   if (side == "RIGHT") {
-    toe_line_mat <- rbind(c(toe_line_mat[1, 1] + 1, toe_line_mat[1, 2]), toe_line_mat,
-                          c(toe_line_mat[nrow(toe_line_mat), 1] - 1,
+    toe_line_mat <- rbind(c(toe_line_mat[1, 1] - 1, toe_line_mat[1, 2]), toe_line_mat,
+                          c(toe_line_mat[nrow(toe_line_mat), 1] + 1,
                             toe_line_mat[nrow(toe_line_mat), 2]))
   }
 
   # add offset distance
-  toe_line_mat[, 2] <- toe_line_mat[, 2] + (offset_row * base_y)
+  #toe_line_mat[, 2] <- toe_line_mat[, 2] + (offset_row * base_y)
 
   # return
   return(toe_line_mat)
@@ -3425,7 +3381,7 @@ sensor_centroid <- function(pressure_data) {
 #' @importFrom sf st_union st_difference
 #' @noRd
 
-automask <- function(pressure_data, mask_scheme, foot_side = "auto",
+automask <- function(pressure_data, mask_scheme, foot_side = "auto", res_scale,
                      plot = TRUE) {
   # check data isn't from pedar
   if (pressure_data[[2]] == "pedar")
@@ -3536,7 +3492,7 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto",
 
     ## simplify toe line
     ### toe line
-    toe_line_mat <- toe_line(pressure_data, side)
+    toe_line_mat <- toe_line(pressure_data, side, res_scale)
     HX_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_hx_line)
     MT12_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_12_line)
     MT23_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_23_line)
@@ -3544,12 +3500,12 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto",
     MT45_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_45_line)
     MT5_toe_pt <- st_intersection(st_linestring(toe_line_mat), edges[[2]])
     toe_line_mat_simple <- rbind(MT5_toe_pt, MT45_toe_pt, MT34_toe_pt,
-                                 MT23_toe_pt, MT12_toe_pt, HX_toe_pt)
-    if (side == "RIGHT") {
-      toe_line_mat_simple <- rbind(toe_line_mat[1, ], toe_line_mat_simple,
-                                   toe_line_mat[nrow(toe_line_mat), ])
-    }
+                                 MT23_toe_pt, HX_toe_pt, MT12_toe_pt)
     if (side == "LEFT") {
+      toe_line_mat_simple <- rbind(toe_line_mat[nrow(toe_line_mat), ], toe_line_mat_simple,
+                                   toe_line_mat[1, ])
+    }
+    if (side == "RIGHT") {
       toe_line_mat_simple <- rbind(toe_line_mat[nrow(toe_line_mat), ],
                                    toe_line_mat_simple, toe_line_mat[1, ])
     }
