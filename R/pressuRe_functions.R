@@ -286,8 +286,10 @@ load_pliance <- function(pressure_filepath) {
   breaks <- which(grepl("time\\[", pressure_raw, useBytes = TRUE))
   y <- pressure_raw[(breaks[1] + 1):(breaks[2] - 2)]
   ## remove MVP and MPP lines if present
-  y <- y[-(which(str_detect(y, "MVP")))]
-  y <- y[-(which(str_detect(y, "MPP")))]
+  MVP <- which(str_detect(y, "MVP"))
+  MPP <- which(str_detect(y, "MPP"))
+  if (length(MVP) > 0) {y <- y[-(MVP)]}
+  if (length(MPP) > 0) {y <- y[-(MPP)]}
   pressure_array_full <- as.matrix(read.table(textConnection(y), sep = ""))
   pressure_array_full <- pressure_array_full[, 2:ncol(pressure_array_full)]
   active_sensors <- which(colSums(pressure_array_full) > 0)
