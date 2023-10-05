@@ -875,9 +875,9 @@ auto_detect_side <- function(pressure_data) {
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' whole_pressure_curve(pressure_data, variable = "peak_pressure", plot = TRUE)
-#' whole_pressure_curve(pressure_data, variable = "area", plot = TRUE)
-#' whole_pressure_curve(pressure_data, variable = "force", plot = TRUE)
+#' whole_pressure_curve(pressure_data, variable = "peak_pressure", plot = FALSE)
+#' whole_pressure_curve(pressure_data, variable = "area", plot = FALSE)
+#' whole_pressure_curve(pressure_data, variable = "force", plot = FALSE)
 #' @importFrom ggplot2 aes ggplot geom_line theme_bw xlab ylab
 #' @export
 
@@ -1030,7 +1030,7 @@ cop <- function(pressure_data) {
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' footprint(pressure_data, plot = TRUE)
+#' footprint(pressure_data, plot = FALSE)
 #' @export
 
 footprint <- function(pressure_data, variable = "max", frame = NULL,
@@ -1525,13 +1525,13 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' foot_side = "auto", plot = FALSE)
+#' res_value = 10000, foot_side = "auto", plot = TRUE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
-                             res_value = 100000, plot = TRUE) {
+                             res_value = 10000, plot = TRUE) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
@@ -2899,24 +2899,35 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   # toe line
   ## start and end points
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
-  row_25 <- round(nrow(pf_max_top) * 0.25)
-  row_70 <- round(nrow(pf_max_top) * 0.7)
+  active_rows <- which(rowSums(pf_max_top) > 0)
+  active_row_1 <- active_rows[1]
+  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.25)
+  row_70 <- round((nrow(pf_max_top) - active_row_1) * 0.7)
 
   ## start point
-  start_y <- offset_distance + (nrow(pf_max_top) * base_y) - (row_25 * base_y)
-  end_y <- offset_distance + (nrow(pf_max_top) * base_y) - (row_70 * base_y)
+  start_y <- offset_distance + (nrow(pf_max_top) * base_y) -
+    (row_25 * base_y) - (active_row_1 * base_y)
+  end_y <- offset_distance + (nrow(pf_max_top) * base_y) -
+    (row_70 * base_y) - (active_row_1 * base_y)
   if (side == "LEFT") {
     start_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
     end_x <- (active_cols[1] * base_x) - base_x / 2
   }
   if (side == "RIGHT") {
-    start_x <- (active_cols[1] * base_x) - base_x / 2
-    end_x <- (active_cols[length(active_cols)] * base_x) - base_x / 2
+    start_x <- ((active_cols[1] * base_x) - base_x / 2) - base_x
+    end_x <- ((active_cols[length(active_cols)] * base_x) - base_x / 2) + base_x
   }
   start <- c(start_x, start_y)
   end <- c(end_x, end_y)
 
   # make raster
+  ## blockers at top
+  act_row_1 <- which(rowSums(pf_max_top) > 0)[1]
+  pf_max_top[act_row_1, ] <- rep(max(pf_max_top), times = ncol(pf_max_top))
+  #pf_max_top[c(act_row_1:(act_row_1 + 2)),
+  #           round(ncol(pf_max_top) / 2)] <- rep(max(pf_max_top), 3)
+
+  ## scale
   pf_max_top <- pf_max_top / res_scale
   r <- raster(pf_max_top)
   raster::extent(r) <- c(0, base_x * ncol(pf_max_top),
@@ -2924,7 +2935,7 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
                          offset_distance + base_y * nrow(pf_max_top))
 
   # line
-  heightDiff <- function(x){x[2] - x[1]}
+  heightDiff <- function(x){abs(x[2] - x[1])}
   hd <- suppressWarnings(transition(r, heightDiff, 8, symm = FALSE))
   slope <- geoCorrection(hd, type = "c")
   adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)

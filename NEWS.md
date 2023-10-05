@@ -1,3 +1,8 @@
+# pressuRe 0.2.3
+* citation details added for Scientific Reports paper
+* Minor bug fixes
+* more improvements to automask
+
 # pressuRe 0.2.2
 * some improvements to novel_automask in create_mask_auto
 * added support for time series in mask_analysis 
