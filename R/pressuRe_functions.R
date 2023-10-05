@@ -1713,7 +1713,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @examplesIf interactive()
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' cpei(pressure_data, foot_side = "auto", plot = TRUE)
+#' cpei(pressure_data, foot_side = "auto", plot_result = FALSE)
 #' @importFrom sf st_convex_hull st_linestring st_distance st_coordinates
 #' @importFrom dplyr pull summarise
 #' @export
@@ -1847,8 +1847,8 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
                        break_values = c(100, 750),
                        break_colors = c("lightgrey", "grey", "darkgrey"),
                        plot_COP = TRUE)
-    g <- g + geom_line(data = med_side_df, aes(X, Y), linetype = "dashed",
-                       color = "black", size = 1.5)
+    #g <- g + geom_line(data = med_side_df, aes(X, Y), linetype = "dashed",
+    #                   color = "black", size = 1.5)
     g <- g + geom_line(data = cpe_df, aes(X, Y), color = "black",
                        size = 2)
     g <- g + geom_line(data = cop_side_df, aes(X, Y), colour = "blue",

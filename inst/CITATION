@@ -1,0 +1,11 @@
+bibentry(
+  bibtype  = "Article",
+  title    = "pressuRe: an R package for analyzing and visualizing biomechanical pressure distribution data",
+  author   = "Scott Telfer, Ellen Y Li",
+  journal  = "Scientific Reports",
+  year     = 2023,
+  volume   = 13,
+  number   = ,
+  pages    = 16776,
+  doi      = "10.1038/s41598-023-44041-6"
+)
