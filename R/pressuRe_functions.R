@@ -1525,7 +1525,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' res_value = 10000, foot_side = "auto", plot = TRUE)
+#' res_value = 100000, foot_side = "auto", plot = FALSE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -2915,27 +2915,30 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   }
   if (side == "RIGHT") {
     start_x <- ((active_cols[1] * base_x) - base_x / 2) - base_x
-    end_x <- ((active_cols[length(active_cols)] * base_x) - base_x / 2) + base_x
+    end_x <- (((active_cols[length(active_cols)] + 1) * base_x) - base_x / 2) + base_x
   }
   start <- c(start_x, start_y)
   end <- c(end_x, end_y)
 
   # make raster
+  ## buffer columns
+  buffer_col <- rep(0, times = nrow(pf_max_top))
+  pf_max_top <- cbind(buffer_col, pf_max_top, buffer_col)
   ## blockers at top
-  act_row_1 <- which(rowSums(pf_max_top) > 0)[1]
-  pf_max_top[act_row_1, ] <- rep(max(pf_max_top), times = ncol(pf_max_top))
+  #act_row_1 <- which(rowSums(pf_max_top) > 0)[1]
+  #pf_max_top[act_row_1, ] <- rep(max(pf_max_top), times = ncol(pf_max_top))
   #pf_max_top[c(act_row_1:(act_row_1 + 2)),
   #           round(ncol(pf_max_top) / 2)] <- rep(max(pf_max_top), 3)
 
   ## scale
   pf_max_top <- pf_max_top / res_scale
   r <- raster(pf_max_top)
-  raster::extent(r) <- c(0, base_x * ncol(pf_max_top),
+  raster::extent(r) <- c(base_x * -1, base_x * (ncol(pf_max_top) + 1),
                          offset_distance,
                          offset_distance + base_y * nrow(pf_max_top))
 
   # line
-  heightDiff <- function(x){abs(x[2] - x[1])}
+  heightDiff <- function(x){x[2] - x[1]}
   hd <- suppressWarnings(transition(r, heightDiff, 8, symm = FALSE))
   slope <- geoCorrection(hd, type = "c")
   adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)
