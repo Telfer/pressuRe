@@ -209,6 +209,7 @@ load_pedar <- function(pressure_filepath) {
   insole_type_ln <- str_split(header[2], "\\:")[[1]][2]
   insole_type <- str_split(insole_type_ln, "\\-")[[1]][1]
   insole_type <- str_trim(insole_type)[[1]][1]
+  if (nchar(insole_type) != 1) {insole_type <- substr(insole_type, 1, 1)}
 
   # Get time between measurements
   time_ln <- str_split(header[3], "\\[Hz\\]\\:")[[1]][2]
