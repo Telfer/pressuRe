@@ -1351,7 +1351,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_vertices",
 #' n_masks = 1, n_verts = 4)
 #' pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_sensors",
-#' n_masks = 1, n_sens = 4)
+#' n_masks = 1, n_sens = 8)
 #' @importFrom grDevices x11
 #' @importFrom ggmap gglocator
 #' @importFrom ggplot2 aes geom_path
@@ -1458,7 +1458,9 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
     # build custom mask
     sensel_polygon <- st_union(st_sfc(sensor_polygons[sensor_list]))
-    if (length(st_geometry(sensel_polygon)[[1]]) > 1)
+    #if (length(st_geometry(sensel_polygon)[[1]]) > 1)
+    #  stop("sensels must share a corner or an edge")
+    if ("L3" %in% colnames(st_coordinates(sensel_polygon)))
       stop("sensels must share a corner or an edge")
 
     # plot
