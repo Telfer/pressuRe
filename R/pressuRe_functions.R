@@ -3031,13 +3031,13 @@ edge_lines <- function(pressure_data, side) {
   me_max <- order(me_dis)[length(me_dis)]
   med_side <- st_coordinates(med_edge_chull)[c(me_max, me_max + 1), c(1, 2)]
   med_side_line <- st_linestring(med_side)
-  med_side_line <- st_extend_line(med_side_line, 1)
+  med_side_line <- st_extend_line(med_side_line, 2)
   le_dis <- as.matrix(dist(st_coordinates(lat_edge_chull)))
   le_dis <- le_dis[row(le_dis) == (col(le_dis) - 1)]
   le_max <- order(le_dis)[length(le_dis) - 1]
   lat_side <- st_coordinates(lat_edge_chull)[c(le_max, le_max + 1), c(1, 2)]
   lat_side_line <- st_linestring(lat_side)
-  lat_side_line <- st_extend_line(lat_side_line, 1)
+  lat_side_line <- st_extend_line(lat_side_line, 2)
 
   # check that no points fall outside of line
   if (side == "RIGHT") {
