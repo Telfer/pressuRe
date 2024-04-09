@@ -63,6 +63,6 @@ pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_vertices",
 n_masks = 1, n_verts = 4)
 pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_sensors",
-n_masks = 1, n_sens = 4)
+n_masks = 1, n_sens = 8)
 \dontshow{\}) # examplesIf}
 }

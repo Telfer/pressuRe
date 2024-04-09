@@ -2159,6 +2159,141 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
 
 
 # =============================================================================
+
+#' Calculate Arch Index
+#' @param pressure_data List. Includes a 3D array covering each timepoint of the
+#'   measurement. z dimension represents time
+#' @param plot Logical. Not implemented yet
+#' @return Numeric. Arch index value
+#' @examples
+#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
+#' pressure_data <- load_emed(emed_data)
+#' arch_index(pressure_data)
+#' @importFrom sf st_bbox
+#' @export
+
+arch_index <- function(pressure_data, plot = TRUE) {
+  # set global variables
+  id <- NULL
+
+  # check emed
+  if (!(pressure_data[[2]] == "emed" | pressure_data[[2]] == "footscan" |
+        pressure_data[[2]] == "pliance"))
+  stop("This function currently only works for pressure plate data")
+
+  # side
+  side <- auto_detect_side(pressure_data)
+
+  # cop_line
+  cop_df <- cop(pressure_data)
+  cop_sf <- cop_df %>%
+    st_as_sf(coords = c("x_coord", "y_coord"))
+  cop_chull <- st_convex_hull(st_combine(cop_sf))
+
+  # cop_straight
+  cop_dis <- as.matrix(dist(st_coordinates(cop_chull)))
+  cop_dis <- cop_dis[row(cop_dis) == (col(cop_dis) - 1)]
+  cop_max <- order(cop_dis)[length(cop_dis)]
+  cop_side <- st_coordinates(cop_chull)[c(cop_max, cop_max + 1), c(1, 2)]
+
+  # remove toes
+  sens_poly <- sens_df_2_polygon(pressure_data[[7]])
+  mask_fp <- create_mask_auto(pressure_data, "automask_novel",
+                              res_value = 100000, plot = FALSE)
+  mask_fp <- mask_fp[[5]]
+  not_in_mask <- c()
+  for (j in 1:length(sens_poly)) {
+    x <- st_intersects(mask_fp[[4]], sens_poly[[j]])
+    if (identical(x[[1]], integer(0)) == FALSE) {not_in_mask <- c(not_in_mask, j)}
+  }
+  for (j in 1:length(sens_poly)) {
+    x <- st_intersects(mask_fp[[5]], sens_poly[[j]])
+    if (identical(x[[1]], integer(0)) == FALSE) {not_in_mask <- c(not_in_mask, j)}
+  }
+  not_in_mask <- unique(not_in_mask)
+
+  # rotate sensor coords
+  ## angle
+  ang <-  atan((cop_side[1, 1] - cop_side[2, 1]) /
+                 (cop_side[1, 2] - cop_side[2, 2])) * (180/pi)
+
+  ## rotate points
+  sens_df <- pressure_data[[7]]
+  sens_df <- sens_df %>% filter(!id %in% not_in_mask)
+  pts <- sens_df[, c(1, 2)]
+  rotated_pts <- rot_pts(as.matrix(pts), ang)
+  sens_df[, c(1, 2)] <- rotated_pts
+
+  # bounding box of footprint (no toes)
+  bb_poly <- as.data.frame(rotated_pts) %>% st_as_sf(coords = c("x", "y")) %>%
+    st_bbox() %>% st_as_sfc()
+
+  # split into thirds
+  coords <- st_coordinates(bb_poly)
+  bb_third <- (max(coords[, 2]) - min(coords[, 2])) / 3
+  len_33 <- min(coords[, 2]) + bb_third
+  len_66 <- min(coords[, 2]) + bb_third * 2
+  x_min <- min(coords[, 1])
+  x_max <- max(coords[, 1])
+  line_33 <- st_linestring(matrix(c(x_min, x_max, len_33, len_33), ncol = 2))
+  line_33 <- st_extend_line(line_33, 1)
+  poly_33_up <- st_line2polygon(line_33, 1, "+Y")
+  poly_33_down <- st_line2polygon(line_33, 1, "-Y")
+  line_66 <- st_linestring(matrix(c(x_min, x_max, len_66, len_66), ncol = 2))
+  line_66 <- st_extend_line(line_66, 1)
+  poly_66_up <- st_line2polygon(line_66, 1, "+Y")
+  poly_66_down <- st_line2polygon(line_66, 1, "-Y")
+
+  ## ff
+  ff_poly <- st_difference(bb_poly, poly_66_down)
+
+  ## mf
+  mf_poly <- st_difference(bb_poly, poly_66_up)
+  mf_poly <- st_difference(mf_poly, poly_33_down)
+
+  ## hf
+  hf_poly <- st_difference(bb_poly, poly_33_up)
+
+  # calculate areas
+  sens_poly <- sens_df_2_polygon(sens_df)
+  sens_area <- pressure_data[[3]][1]
+  ff_area <- c()
+  for (j in 1:length(sens_poly)) {
+    x <- st_intersects(ff_poly, sens_poly[[j]])
+      if (identical(x[[1]], integer(0)) == FALSE) {
+        y <- st_intersection(ff_poly, sens_poly[[j]])
+        ff_area <- c(ff_area, (st_area(y) / sens_area) * sens_area)
+    }
+  }
+  ff_area <- sum(ff_area)
+  mf_area <- c()
+  for (j in 1:length(sens_poly)) {
+    x <- st_intersects(mf_poly, sens_poly[[j]])
+    if (identical(x[[1]], integer(0)) == FALSE) {
+      y <- st_intersection(mf_poly, sens_poly[[j]])
+      mf_area <- c(mf_area, (st_area(y) / sens_area) * sens_area)
+    }
+  }
+  mf_area <- sum(mf_area)
+  hf_area <- c()
+  for (j in 1:length(sens_poly)) {
+    x <- st_intersects(hf_poly, sens_poly[[j]])
+    if (identical(x[[1]], integer(0)) == FALSE) {
+      y <- st_intersection(hf_poly, sens_poly[[j]])
+      hf_area <- c(hf_area, (st_area(y) / sens_area) * sens_area)
+    }
+  }
+  hf_area <- sum(hf_area)
+
+  # calculate arch index
+  a_ind <- mf_area / (ff_area + mf_area + hf_area)
+
+  # return arch index
+  return(a_ind)
+}
+
+
+# =============================================================================
 # =============================================================================
 
 # helper functions
@@ -2820,6 +2955,7 @@ st_extend_line <- function(line, distance, end = "BOTH") {
   return(newline)
 }
 
+
 #' @title line to polygon
 #' @description Extrude line to form polygon
 #' @param mat Matrix. xy points describing line or polyline
@@ -3075,6 +3211,16 @@ rot_line <- function(line, ang, cnt) {
   return(new_line)
 }
 
+#' rotate points
+#' @noRd
+#'
+rot_pts <- function (pts, ang) {
+  radian <- ang * ( pi / 180)
+  x <- c(cos(radian), -sin(radian))
+  y <- c(sin(radian), cos(radian))
+  new_pts = pts %*% cbind(x, y)
+  return(new_pts)
+}
 
 #' @title Visualize masks
 #' @description Visualize the existing masks
