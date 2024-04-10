@@ -6,7 +6,7 @@
 \alias{pressuRe-package}
 \title{pressuRe: Imports, Processes, and Visualizes Biomechanical Pressure Data}
 \description{
-Allows biomechanical pressure data from a range of systems to be imported and processed in a reproducible manner. Automatic and manual tools are included to let the user define regions (masks) to be analyzed. Also includes functions for visualizing and animating pressure data. Example methods are described in Shi et al., (2022) \doi{10.1038/s41598-022-19814-0}, Lee et al., (2014) \doi{10.1186/1757-1146-7-18}, van der Zward et al., (2014) \doi{10.1186/1757-1146-7-20}, and Najafi et al., (2010) \doi{10.1016/j.gaitpost.2009.09.003}.
+Allows biomechanical pressure data from a range of systems to be imported and processed in a reproducible manner. Automatic and manual tools are included to let the user define regions (masks) to be analyzed. Also includes functions for visualizing and animating pressure data. Example methods are described in Shi et al., (2022) \doi{10.1038/s41598-022-19814-0}, Lee et al., (2014) \doi{10.1186/1757-1146-7-18}, van der Zward et al., (2014) \doi{10.1186/1757-1146-7-20}, Najafi et al., (2010) \doi{10.1016/j.gaitpost.2009.09.003}, Cavanagh and Rodgers (1987) \doi{10.1016/0021-9290(87)90255-7}.
 }
 \seealso{
 Useful links:

@@ -2,7 +2,7 @@
 % Please edit documentation in R/pressuRe_functions.R
 \name{arch_index}
 \alias{arch_index}
-\title{Calculate Arch Index}
+\title{Calculate Arch Index.}
 \usage{
 arch_index(pressure_data, plot = TRUE)
 }
@@ -16,7 +16,7 @@ measurement. z dimension represents time}
 Numeric. Arch index value
 }
 \description{
-Calculate Arch Index
+Calculate Arch Index.
 }
 \examples{
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")

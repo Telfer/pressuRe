@@ -1,3 +1,8 @@
+# pressure 0.2.4
+* arch_index function added (beta version)
+* added link to description
+* Minor bug fixes
+
 # pressuRe 0.2.3
 * citation details added for Scientific Reports paper
 * Minor bug fixes

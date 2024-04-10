@@ -2160,7 +2160,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
 
 # =============================================================================
 
-#' Calculate Arch Index
+#' Calculate Arch Index.
 #' @param pressure_data List. Includes a 3D array covering each timepoint of the
 #'   measurement. z dimension represents time
 #' @param plot Logical. Not implemented yet
