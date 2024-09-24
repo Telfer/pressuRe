@@ -3334,13 +3334,19 @@ icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-
 #' of the measurement.
 #' @param mask Data frame.
 #' @return List.
+#' @importFrom sf st_coordinates
 #' @noRd
 align_mask <- function(pressure_data, mask) {
   # get outline of pressure
   outline <- pressure_outline(pressure_data)
 
   # align mask
-  mask_aligned <- icp(outline, mask)
+  mask_coords <- data.frame(x = double(), y = double())
+  for (i in 1:length(masks)) {
+    crds <- sf::st_coordinates(mask[[1]])[, c(1, 2)]
+    mask_coords <- rbind(mask_coords, crds)
+  }
+  mask_aligned <- icp(outline, mask_coords)
 
   # return aligned mask
   return(mask_aligned)
