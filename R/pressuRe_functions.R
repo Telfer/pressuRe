@@ -2495,11 +2495,8 @@ masks_2_df <- function(masks) {
 
 sensor_coords <- function(pressure_data, pressure_image = "all_active", frame) {
   # pressure image
-  if (pressure_image == "all_active" | pressure_image == "max" |
-      pressure_image == "mean") {
-    sens <- footprint(pressure_data, variable = "max")
-  }
-  if (pressure_image == "all") {
+  if (pressure_image == "all" | pressure_image == "all_active" |
+      pressure_image == "max" | pressure_image == "mean") {
     dims <- dim(pressure_data[[1]])
     sens <- matrix(rep(10, length.out = dims[1] * dims[2]), nrow = dims[1],
                    ncol = dims[2])
