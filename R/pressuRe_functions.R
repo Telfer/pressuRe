@@ -3342,7 +3342,7 @@ align_mask <- function(pressure_data, mask) {
 
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
-  for (i in 1:length(masks)) {
+  for (i in 1:length(mask)) {
     crds <- sf::st_coordinates(mask[[1]])[, c(1, 2)]
     mask_coords <- rbind(mask_coords, crds)
   }
