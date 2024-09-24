@@ -1498,7 +1498,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @param pressure_data List. First item is a 3D array covering each timepoint
 #' of the measurement. z dimension represents time
 #' @param masking_scheme String. "automask_simple", "automask_novel",
-#' "pedar_mask1", "pedar_mask2", "pedar_mask3".
+#' "pedar_mask1", "pedar_mask2", "pedar_mask3", "template_mask".
 #' "simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
 #' "automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
 #' hallux, lesser toes), similar to the standard novel automask
@@ -1515,6 +1515,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' isn't correct. Default is 100000. This line is calculated using a least cost function and this
 #' parameter basically adjusts the resistance of the pressure value for that algorithm
 #' @param plot Logical. Whether to play the animation
+#' @param template_mask Data frame. Mask to be used if "template_mask" is selected as the masking scheme
 #' @return List. Masks are added to pressure data variable
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -1535,7 +1536,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
-                             res_value = 10000, plot = TRUE) {
+                             res_value = 10000, plot = TRUE, template_mask = NULL) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
@@ -1543,7 +1544,7 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     pressure_data <- automask(pressure_data, "automask_simple", plot = FALSE)
   }
 
-  ## full
+  ## full auto mask novel
   if (masking_scheme == "automask_novel") {
     if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
       stop("automask is not compatible with this type of data")
@@ -1572,6 +1573,12 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
       stop("pedar_mask3 is not compatible with this type of data")
     pressure_data[[5]] <- pedar_mask3(pressure_data)
   }
+
+  # apply a template mask
+  if (masking_scheme == "template") {
+    pressure_data[[5]] <- align_mask(pressure_data, template_mask)
+  }
+
 
   # plot masks
   if (plot == TRUE) {plot_masks(pressure_data)}
@@ -3221,6 +3228,127 @@ rot_pts <- function (pts, ang) {
   new_pts = pts %*% cbind(x, y)
   return(new_pts)
 }
+
+#' apply transform
+#' @noRd
+apply_transformation <- function(X, R, t, s) {
+  return(t(apply(X, 1, function(p) s * R %*% as.matrix(p) + t)))
+}
+
+#' standardize_coordinates
+#' @noRd
+standardize_coordinates <- function(X) {
+  mu <- colMeans(X)
+  Xs <- t(apply(X, 1, function(x) {x - mu}))
+  sigma <- sqrt(sum(Xs * Xs))
+  Xs <- Xs/sigma
+  return(list(X = Xs, mu = mu, sigma = sigma))
+}
+
+#' restore coordinates
+#' @noRd
+restore_coordinates <- function(X, mu, sigma) {
+  X <- X * sigma
+  X <- t(apply(X, 1, function(x) {x + mu}))
+  return(X)
+}
+
+#' @title Iterative closest point
+#' @description Performs iterative closest point algorithm on 2 sets of points
+#' @param X Matrix
+#' @param Y Matirx
+#' @param weights Vector
+#' @param iterations Default 100
+#' @param scale Logical
+#' @param tol Default 1e-3
+#' @return List.
+#' @importFrom RANN nn2
+#' @noRd
+icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-3) {
+  if (dim(Y)[2] != dim(X)[2]) {
+    stop("ERROR: Point sets must have same dimension")
+  }
+  D <- dim(X)[2]
+
+  X <- as.matrix(X)
+  Xs <- standardize_coordinates(X)
+  X <- Xs[["X"]]
+  Y <- as.matrix(Y)
+  Ys <- standardize_coordinates(Y)
+  Y <- Ys[["X"]]
+
+  M <- dim(Y)[1]
+  N <- dim(X)[1]
+
+  R <- diag(D)
+  t <- rep(0, D)
+  s <- 1
+  Yt <- Y
+
+  iter <- 0
+  converged <- FALSE
+  err <- 1e154
+  R.final <- diag(D)
+  t.final <- rep(0,D)
+  s.final <- 1
+  while(iter < iterations) {
+    iter <- iter + 1
+
+    # Find closest points in X
+    nn <- RANN::nn2(X, Yt, k = 1, searchtype = "standard")
+    Xc <- X[nn[["nn.idx"]], ]
+
+    old.err <- err
+    err <- sum((Xc - Yt) ^ 2)
+    if(abs(old.err - err) / err < tol) {
+      converged <- TRUE
+      break
+    }
+
+    # Compute R and t
+    muX <-  colMeans(Xc)
+    muY <-  colMeans(Yt)
+    Xhat <- as.matrix(Xc-muX)
+    Yhat <- as.matrix(Yt-muY)
+
+    A <- t(Xhat) %*% Yhat
+    svd.A <- svd(A)
+    C <- diag(D)
+    C[length(C)] <- det(svd.A$u) * det(svd.A$v)
+    R <- svd.A$u %*% C %*% t(svd.A$v)
+    if (scale) {
+      s <- sum(A * R)/sum(t(Yhat) %*% Yhat)
+      s.final <- s.final * s
+    }
+    t <- muX - s * R %*% muY
+
+    Yt <- apply_transformation(Yt, R, t, s)
+    R.final <- R %*% R.final
+    t.final <- t.final + t
+  }
+  Yt <- restore_coordinates(Yt, Xs[["mu"]], Ys[["sigma"]])
+  return(list(Y = Yt, R = R.final, t = t.final*Ys[["sigma"]], s = s, iter = iter, conv = converged))
+}
+
+
+#' @title Align mask
+#' @description Align mask, usually to trials from the same person
+#' @param pressure_data List. First item is a 3D array covering each timepoint
+#' of the measurement.
+#' @param mask Data frame.
+#' @return List.
+#' @noRd
+align_mask <- function(pressure_data, mask) {
+  # get outline of pressure
+  outline <- pressure_outline(pressure_data)
+
+  # align mask
+  mask_aligned <- icp(outline, mask)
+
+  # return aligned mask
+  return(mask_aligned)
+}
+
 
 #' @title Visualize masks
 #' @description Visualize the existing masks

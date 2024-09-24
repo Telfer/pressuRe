@@ -9,7 +9,8 @@ create_mask_auto(
   masking_scheme,
   foot_side = "auto",
   res_value = 10000,
-  plot = TRUE
+  plot = TRUE,
+  template_mask = NULL
 )
 }
 \arguments{
@@ -17,7 +18,7 @@ create_mask_auto(
 of the measurement. z dimension represents time}
 
 \item{masking_scheme}{String. "automask_simple", "automask_novel",
-"pedar_mask1", "pedar_mask2", "pedar_mask3".
+"pedar_mask1", "pedar_mask2", "pedar_mask3", "template_mask".
 "simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
 "automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
 hallux, lesser toes), similar to the standard novel automask
@@ -37,6 +38,8 @@ isn't correct. Default is 100000. This line is calculated using a least cost fun
 parameter basically adjusts the resistance of the pressure value for that algorithm}
 
 \item{plot}{Logical. Whether to play the animation}
+
+\item{template_mask}{Data frame. Mask to be used if "template_mask" is selected as the masking scheme}
 }
 \value{
 List. Masks are added to pressure data variable
