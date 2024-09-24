@@ -3339,7 +3339,7 @@ icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-
 align_mask <- function(pressure_data, mask) {
   # get outline of pressure
   outline <- pressure_outline(pressure_data)
-  outline_coords <- st_coordinates(outline)
+  outline_coords <- st_coordinates(outline)[, c(1, 2)]
 
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
