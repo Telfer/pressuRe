@@ -1498,7 +1498,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @param pressure_data List. First item is a 3D array covering each timepoint
 #' of the measurement. z dimension represents time
 #' @param masking_scheme String. "automask_simple", "automask_novel",
-#' "pedar_mask1", "pedar_mask2", "pedar_mask3", "template_mask".
+#' "pedar_mask1", "pedar_mask2", "pedar_mask3", "template".
 #' "simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
 #' "automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
 #' hallux, lesser toes), similar to the standard novel automask
