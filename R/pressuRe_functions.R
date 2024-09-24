@@ -3339,6 +3339,7 @@ icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-
 align_mask <- function(pressure_data, mask) {
   # get outline of pressure
   outline <- pressure_outline(pressure_data)
+  outline_coords <- st_coordinates(outline)
 
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
@@ -3346,7 +3347,7 @@ align_mask <- function(pressure_data, mask) {
     crds <- sf::st_coordinates(mask[[1]])[, c(1, 2)]
     mask_coords <- rbind(mask_coords, crds)
   }
-  mask_aligned <- icp(outline, mask_coords)
+  mask_aligned <- icp(outline_coords, mask_coords)
 
   # return aligned mask
   return(mask_aligned)
