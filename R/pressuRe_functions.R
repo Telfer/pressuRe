@@ -3354,7 +3354,7 @@ align_mask <- function(pressure_data, mask) {
   transform_m <- icp(outline_coords, mask_coords_mat)
 
   # convert mask
-  mask <- mask_t
+  mask_t <- mask
   for (i in 1:length(mask)) {
     # mask
     mask_t[[i]] <- mask[[i]] * transform_m$R +transform_m$t
