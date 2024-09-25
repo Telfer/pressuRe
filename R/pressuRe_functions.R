@@ -3360,7 +3360,8 @@ align_mask <- function(pressure_data, mask) {
     mask_crds <- st_coordinates(mask[[i]])[, c(1, 2)]
     mask_crds_t <- apply_transformation(mask_crds, transform_m$R,
                                         transform_m$t, transform_m$s)
-    mask_crds_t <- mask_crds_t - transform_m$t
+    mask_crds_t[, 1] <- mask_crds_t[, 1] - transform_m$t[1]
+    mask_crds_t[, 2] <- mask_crds_t[, 2] - transform_m$t[2]
     mask_crds_t <- rbind(mask_crds_t, mask_crds_t[nrow(mask_crds_t), ])
     mask_t[[i]] <- st_polygon(list(mask_crds_t))
   }
