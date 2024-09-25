@@ -3344,13 +3344,25 @@ align_mask <- function(pressure_data, mask) {
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
   for (i in 1:length(mask)) {
-    crds <- sf::st_coordinates(mask[[1]])[, c(1, 2)]
+    crds <- sf::st_coordinates(mask[[i]])[, c(1, 2)]
     mask_coords <- rbind(mask_coords, crds)
   }
-  mask_aligned <- icp(outline_coords, mask_coords)
+  coords_df <- mask_coords %>%
+    st_as_sf(coords = c("X", "Y"))
+  fp_chull <- st_convex_hull(st_combine(coords_df))
+  mask_coords_mat <- st_coordinates(fp_chull)[, c(1, 2)]
+  transform_m <- icp(outline_coords, mask_coords_mat)
+
+  # convert mask
+  mask <- mask_t
+  for (i in 1:length(mask) {
+    # mask
+    mask_t[[i]] <- mask[[i]] * transform_m$R +transform_m$t
+  }
 
   # return aligned mask
-  return(mask_aligned)
+  pressure_data[[5]] <- mask_t
+  return(pressure_data)
 }
 
 
