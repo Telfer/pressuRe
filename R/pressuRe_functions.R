@@ -3353,7 +3353,7 @@ align_mask <- function(pressure_data, mask) {
     st_as_sf(coords = c("X", "Y"))
   fp_chull <- st_convex_hull(st_combine(coords_df))
   mask_coords_mat <- st_coordinates(fp_chull)[, c(1, 2)]
-  transform_m <- icp(outline_coords, mask_coords_mat)
+  transform_m <- icp(outline_coords_mat, mask_coords_mat)
 
   # convert mask
   mask_t <- mask
