@@ -2506,8 +2506,8 @@ sensor_coords <- function(pressure_data, pressure_image = "all_active", frame) {
   }
 
   # dimensions
-  sens_x <- pressure_data[[3]][1]
-  sens_y <- pressure_data[[3]][2]
+  sens_x <- unique(pressure_data$sens_polygons$x)[2] - unique(pressure_data$sens_polygons$x)[1]
+  sens_y <- unique(pressure_data$sens_polygons$y)[2] - unique(pressure_data$sens_polygons$y)[1]
 
   # data frame with active sensors as coordinates
   x_cor <- seq(from = sens_x / 2, by = sens_x, length.out = ncol(sens))
