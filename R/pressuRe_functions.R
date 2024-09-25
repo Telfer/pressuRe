@@ -3332,12 +3332,16 @@ icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-
 #' of the measurement.
 #' @param mask Data frame.
 #' @return List.
-#' @importFrom sf st_coordinates st_polygon
+#' @importFrom sf st_coordinates st_polygon st_convex_hull
 #' @noRd
 align_mask <- function(pressure_data, mask) {
   # get outline of pressure
-  outline <- pressure_outline(pressure_data)
-  outline_coords <- st_coordinates(outline)[, c(1, 2)]
+  #outline <- pressure_outline(pressure_data)
+  #outline_coords <- st_coordinates(outline)[, c(1, 2)]
+  outline_coords <- pressure_data$sens_polygons[, c(1, 2)] %>%
+    st_as_sf(coords = c("x", "y"))
+  outline_chull <- st_convex_hull(st_combine(outline_coords))
+  outline_coords_mat <- st_coordinates(outline_chull)[, c(1, 2)]
 
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
