@@ -1576,7 +1576,7 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 
   # apply a template mask
   if (masking_scheme == "template") {
-    pressure_data[[5]] <- align_mask(pressure_data, template_mask)
+    pressure_data <- align_mask(pressure_data, template_mask)
   }
 
 
@@ -3344,7 +3344,7 @@ align_mask <- function(pressure_data, mask) {
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
   for (i in 1:length(mask)) {
-    crds <- sf::st_coordinates(mask[[i]])[, c(1, 2)]
+    crds <- st_coordinates(mask[[i]])[, c(1, 2)]
     mask_coords <- rbind(mask_coords, crds)
   }
   coords_df <- mask_coords %>%
