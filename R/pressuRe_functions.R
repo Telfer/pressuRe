@@ -3224,105 +3224,68 @@ rot_pts <- function (pts, ang) {
   return(new_pts)
 }
 
-#' apply transform
-#' @noRd
-apply_transformation <- function(X, R, t, s) {
-  return(t(apply(X, 1, function(p) s * R %*% as.matrix(p) + t)))
-}
 
-#' standardize_coordinates
+#' @title icp mask
+#' @description match two landmark configurations using iteratively closest point search
+#' @param x moving landmarks
+#' @param y target landmarks
+#' @param iterations integer: number of iterations
+#' @param mindist restrict valid points to be within this distance
+#' @param subsample use a subsample determined by kmean clusters to speed up computation
+#' @param type character: select the transform to be applied, can be "rigid","similarity" or "affine"
+#' @param weights vector of length \code{nrow(x)} containing weights for each row in \code{x}
+#' @param centerweight logical: if weights are defined and centerweigths=TRUE, the matrix will be centered according to these weights instead of the barycenter.
+#' @param threads integer: number of threads to use.
+#' @return returns the rotated landmarks
+#' @importFrom Rvcg vcgKDtree vcgSearchKDtree vcgCreateKDtree
+#' @importFrom Morpho computeTransform applyTransform
 #' @noRd
-standardize_coordinates <- function(X) {
-  mu <- colMeans(X)
-  Xs <- t(apply(X, 1, function(x) {x - mu}))
-  sigma <- sqrt(sum(Xs * Xs))
-  Xs <- Xs/sigma
-  return(list(X = Xs, mu = mu, sigma = sigma))
-}
+icp_mask <- function(x, y, mask_list, iterations = 100, mindist = 1e15,
+                type = "similarity", threads = 1, centerweight = FALSE) {
+  # mask
 
-#' restore coordinates
-#' @noRd
-restore_coordinates <- function(X, mu, sigma) {
-  X <- X * sigma
-  X <- t(apply(X, 1, function(x) {x + mu}))
-  return(X)
-}
-
-#' @title Iterative closest point
-#' @description Performs iterative closest point algorithm on 2 sets of points
-#' @param X Matrix
-#' @param Y Matirx
-#' @param weights Vector
-#' @param iterations Default 100
-#' @param scale Logical
-#' @param tol Default 1e-3
-#' @return List.
-#' @importFrom RANN nn2
-#' @noRd
-icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-3) {
-  if (dim(Y)[2] != dim(X)[2]) {
-    stop("ERROR: Point sets must have same dimension")
+  # add column if 2D
+  m <- ncol(x)
+  if (m == 2) {
+    x <- cbind(x,0)
+    y <- cbind(y,0)
   }
-  D <- dim(X)[2]
 
-  X <- as.matrix(X)
-  Xs <- standardize_coordinates(X)
-  X <- Xs[["X"]]
-  Y <- as.matrix(Y)
-  Ys <- standardize_coordinates(Y)
-  Y <- Ys[["X"]]
+  # type
+  type <- match.arg(type,c("rigid", "similarity", "affine"))
 
-  M <- dim(Y)[1]
-  N <- dim(X)[1]
+  # temporary moving coords
+  xtmp <- x
 
-  R <- diag(D)
-  t <- rep(0, D)
-  s <- 1
-  Yt <- Y
+  # mask_list
 
-  iter <- 0
-  converged <- FALSE
-  err <- 1e154
-  R.final <- diag(D)
-  t.final <- rep(0,D)
-  s.final <- 1
-  while(iter < iterations) {
-    iter <- iter + 1
+  # KD tree
+  yKD <- vcgCreateKDtree(y)
 
-    # Find closest points in X
-    nn <- RANN::nn2(X, Yt, k = 1, searchtype = "standard")
-    Xc <- X[nn[["nn.idx"]], ]
-
-    old.err <- err
-    err <- sum((Xc - Yt) ^ 2)
-    if(abs(old.err - err) / err < tol) {
-      converged <- TRUE
-      break
-    }
-
-    # Compute R and t
-    muX <-  colMeans(Xc)
-    muY <-  colMeans(Yt)
-    Xhat <- as.matrix(Xc-muX)
-    Yhat <- as.matrix(Yt-muY)
-
-    A <- t(Xhat) %*% Yhat
-    svd.A <- svd(A)
-    C <- diag(D)
-    C[length(C)] <- det(svd.A$u) * det(svd.A$v)
-    R <- svd.A$u %*% C %*% t(svd.A$v)
-    if (scale) {
-      s <- sum(A * R)/sum(t(Yhat) %*% Yhat)
-      s.final <- s.final * s
-    }
-    t <- muX - s * R %*% muY
-
-    Yt <- apply_transformation(Yt, R, t, s)
-    R.final <- R %*% R.final
-    t.final <- t.final + t
+  # iterate to find best fit
+  for (i in 1:iterations) {
+    clost <- vcgSearchKDtree(yKD, xtmp, 1, threads = threads)
+    good <- which(clost$distance < mindist)
+    trafo <- computeTransform(y[clost$index[good],], xtmp[good,], type = type, weights = NULL, centerweight = centerweight)
+    xtmp <- applyTransform(xtmp[,], trafo)
   }
-  Yt <- restore_coordinates(Yt, Xs[["mu"]], Ys[["sigma"]])
-  return(list(Y = Yt, R = R.final, t = t.final*Ys[["sigma"]], s = s, iter = iter, conv = converged))
+
+  # final transform
+  fintrafo <- computeTransform(xtmp, x, type = type)
+
+  # transform mask coordinates
+  mask_t <- mask_list
+  for (i in 1:length(mask_list)) {
+    # mask
+    mask_crds <- st_coordinates(mask_list[[i]])[, c(1, 2)]
+    mask_crds <- cbind(mask_crds, 0)
+    mask_crds_t <- applyTransform(mask_crds, inverse = TRUE, fintrafo)
+    mask_crds_t <- rbind(mask_crds_t, mask_crds_t[nrow(mask_crds_t), ])
+    mask_t[[i]] <- st_polygon(list(mask_crds_t))
+  }
+
+  # return
+  return(mask_t)
 }
 
 
@@ -3330,11 +3293,11 @@ icp <- function(X, Y, weights = NULL, iterations = 100, scale = FALSE, tol = 1e-
 #' @description Align mask, usually to trials from the same person
 #' @param pressure_data List. First item is a 3D array covering each timepoint
 #' of the measurement.
-#' @param mask Data frame.
+#' @param mask List. List with masks to be transformed
 #' @return List.
 #' @importFrom sf st_coordinates st_polygon st_convex_hull
 #' @noRd
-align_mask <- function(pressure_data, mask) {
+align_mask <- function(pressure_data, masks) {
   # get outline of pressure
   outline_coords <- pressure_data$sens_polygons[, c(1, 2)] %>%
     st_as_sf(coords = c("x", "y"))
@@ -3343,31 +3306,20 @@ align_mask <- function(pressure_data, mask) {
 
   # align mask
   mask_coords <- data.frame(x = double(), y = double())
-  for (i in 1:length(mask)) {
-    crds <- st_coordinates(mask[[i]])[, c(1, 2)]
+  for (i in 1:length(masks)) {
+    crds <- st_coordinates(masks[[i]])[, c(1, 2)]
     mask_coords <- rbind(mask_coords, crds)
   }
   coords_df <- mask_coords %>%
     st_as_sf(coords = c("X", "Y"))
   fp_chull <- st_convex_hull(st_combine(coords_df))
   mask_coords_mat <- st_coordinates(fp_chull)[, c(1, 2)]
-  transform_m <- icp(outline_coords_mat, mask_coords_mat)
 
-  # convert mask
-  mask_t <- mask
-  for (i in 1:length(mask)) {
-    # mask
-    mask_crds <- st_coordinates(mask[[i]])[, c(1, 2)]
-    mask_crds_t <- apply_transformation(mask_crds, transform_m$R,
-                                        transform_m$t, transform_m$s)
-    mask_crds_t[, 1] <- mask_crds_t[, 1] - transform_m$t[1]
-    mask_crds_t[, 2] <- mask_crds_t[, 2] - transform_m$t[2]
-    mask_crds_t <- rbind(mask_crds_t, mask_crds_t[nrow(mask_crds_t), ])
-    mask_t[[i]] <- st_polygon(list(mask_crds_t))
-  }
+  # transform masks
+  masks_trans <- icp_mask(mask_coords_mat, outline_coords_mat, masks)
 
   # return aligned mask
-  pressure_data[[5]] <- mask_t
+  pressure_data[[5]] <- masks_trans
   return(pressure_data)
 }
 
