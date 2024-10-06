@@ -3242,8 +3242,6 @@ rot_pts <- function (pts, ang) {
 #' @noRd
 icp_mask <- function(x, y, mask_list, iterations = 100, mindist = 1e15,
                 type = "similarity", threads = 1, centerweight = FALSE) {
-  # mask
-
   # add column if 2D
   m <- ncol(x)
   if (m == 2) {
@@ -3256,8 +3254,6 @@ icp_mask <- function(x, y, mask_list, iterations = 100, mindist = 1e15,
 
   # temporary moving coords
   xtmp <- x
-
-  # mask_list
 
   # KD tree
   yKD <- vcgCreateKDtree(y)
@@ -3316,7 +3312,7 @@ align_mask <- function(pressure_data, masks) {
   mask_coords_mat <- st_coordinates(fp_chull)[, c(1, 2)]
 
   # transform masks
-  masks_trans <- icp_mask(mask_coords_mat, outline_coords_mat, masks)
+  masks_trans <- icp_mask(outline_coords_mat, mask_coords_mat, masks)
 
   # return aligned mask
   pressure_data[[5]] <- masks_trans
