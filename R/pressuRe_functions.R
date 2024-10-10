@@ -3676,7 +3676,7 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto", res_scale,
   df_sf <- sens_coords %>%
     st_as_sf(coords = c( "x", "y" ))
   fp_chull <- st_convex_hull(st_union(df_sf))
-  fp_chull <- st_buffer(fp_chull, pressure_data[[3]][1])
+  fp_chull <- st_buffer(fp_chull, 0.0025)
 
   # Simple 3 mask (forefoot, midfoot, and hindfoot)
   ## Bounding box sides
@@ -3813,9 +3813,11 @@ automask <- function(pressure_data, mask_scheme, foot_side = "auto", res_scale,
     mask_df <- masks_2_df(mask_list)
 
     # Plot footprint and masks
+    x_max <- max(pressure_data[[7]]$x) + 0.01
+    y_max <- max(pressure_data[[7]]$y) + 0.01
     g <- plot_pressure(pressure_data, "max", plot = FALSE)
-    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
-    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
+    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, x_max))
+    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, y_max))
     g <- g + geom_path(data = mask_df, aes(x = x, y = y, group = mask),
                        color = "red", linewidth = 1)
     suppressMessages(print(g))
