@@ -3348,9 +3348,11 @@ plot_masks <- function(pressure_data,
   grDevices::x11()
 
   if (pressure_data[[2]] != "pedar"){
+    x_max <- max(pressure_data[[7]]$x) + 0.01
+    y_max <- max(pressure_data[[7]]$y) + 0.01
     g <- plot_pressure(pressure_data, image, plot = FALSE)
-    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
-    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
+    g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, x_max))
+    g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, y_max))
   } else {
     if (image == "max"){
       g <- plot_pressure(pressure_data, variable = "max", plot = FALSE)
