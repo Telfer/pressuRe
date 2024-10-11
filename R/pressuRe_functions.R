@@ -1544,7 +1544,7 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     pressure_data <- automask(pressure_data, "automask_simple", plot = FALSE)
   }
 
-  ## full auto mask novel
+  # full auto mask novel
   if (masking_scheme == "automask_novel") {
     if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
       stop("automask is not compatible with this type of data")
@@ -3345,7 +3345,7 @@ plot_masks <- function(pressure_data,
   X <- Y <- NULL
 
   # initialize plot
-  grDevices::x11()
+  #grDevices::x11()
 
   if (pressure_data[[2]] != "pedar"){
     x_max <- max(pressure_data[[7]]$x) + 0.01
