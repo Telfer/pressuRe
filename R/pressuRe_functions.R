@@ -1994,7 +1994,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
 
   # include partial sensors?
   if (partial_sensors == FALSE) {
-    sens_mask_df[sens_mask_df < 1 & sens_mask_df > 0] <- 0
+    sens_mask_df[sens_mask_df < 0.999 & sens_mask_df > 0] <- 0
   }
 
   # create blank output dataframes
