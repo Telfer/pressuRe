@@ -3362,7 +3362,7 @@ plot_masks <- function(pressure_data,
       stop("The variable image is invalid")
     }
   }
-  print(g)
+  #print(g)
 
   # plot original mask data
   for (n_mask in visual_list) {
