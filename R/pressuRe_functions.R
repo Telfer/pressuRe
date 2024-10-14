@@ -1384,7 +1384,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
         mask_coord
     }
   } else {
-    grDevices::x11()
+    #grDevices::x11()
     g <- plot_pressure(pressure_data, plot = FALSE)
     #g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
     #g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
@@ -1579,7 +1579,6 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     pressure_data <- align_mask(pressure_data, template_mask)
   }
 
-
   # plot masks
   if (plot == TRUE) {plot_masks(pressure_data)}
 
@@ -1634,6 +1633,9 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
   X <- Y <- NULL
 
   if (n_edit > 0) {
+    # initialize plot
+    grDevices::x11()
+
     # plot original mask data
     g <- plot_masks(pressure_data, image = image)
 
