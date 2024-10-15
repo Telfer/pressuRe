@@ -3134,23 +3134,24 @@ edge_lines <- function(pressure_data, side) {
   sens_coords <- pressure_data[[7]]
 
   # Find longest vectors (these are the med and lat edges of the footprint)
-  ## unique y coordinates of sensors
-  unq_y <- unique(sens_coords$y)
-
-  ## how much to shorten by
-  shorten_n <- ceiling(ncol(max_fp) / 10)
-  unq_y_short <- unq_y[-match(tail(sort(unq_y), shorten_n), unq_y)]
-  unq_y_short <- unq_y_short[-match(head(sort(unq_y_short), shorten_n),
-                                    unq_y_short)]
+  ## reduced set of coords
+  len_fp <- max(sens_coords$y) - min(sens_coords$y)
+  toe_y <- len_fp * 0.8
+  heel_y <- len_fp * 0.1
+  mid_low <- len_fp * 0.3
+  mid_high <- len_fp * 0.6
+  sens_coords_reduced <- sens_coords %>% filter(y < toe_y) %>%
+    filter(y > heel_y) %>% filter(y < mid_low | y > mid_high)
+  sens_y <- unique(sens_coords_reduced$y)
 
   ## make edges
-  med_edge <- data.frame(x = rep(NA, length.out = length(unq_y_short)),
-                         y = unq_y_short)
+  med_edge <- data.frame(x = rep(NA, length.out = length(sens_y)),
+                         y = sens_y)
   lat_edge <- med_edge
-  for (i in 1:length(unq_y_short)) {
-    med_edge[i, 1] <- sens_coords %>% filter(y == unq_y_short[i]) %>%
+  for (i in 1:length(sens_y)) {
+    med_edge[i, 1] <- sens_coords_reduced %>% filter(y == sens_y[i]) %>%
       summarise(me = max(x)) %>% pull(me)
-    lat_edge[i, 1] <- sens_coords %>% filter(y == unq_y_short[i]) %>%
+    lat_edge[i, 1] <- sens_coords %>% filter(y == sens_y[i]) %>%
       summarise(me = min(x)) %>% pull(me)
   }
   if (side == "RIGHT") {
@@ -3178,16 +3179,6 @@ edge_lines <- function(pressure_data, side) {
   lat_side <- st_coordinates(lat_edge_chull)[c(le_max, le_max + 1), c(1, 2)]
   lat_side_line <- st_linestring(lat_side)
   lat_side_line <- st_extend_line(lat_side_line, 2)
-
-  # check that no points fall outside of line
-  if (side == "RIGHT") {
-    med_poly <- st_line2polygon(med_side_line, 1, "-X")  + c(-0.001, 0)
-    lat_poly <- st_line2polygon(lat_side_line, 1, "+X")  + c(0.001, 0)
-  }
-  #med_int <- st_intersects(st_as_sfc(med_edge_sf), med_poly)
-  #lat_int <- st_intersects(st_as_sfc(lat_edge_sf), lat_poly)
-
-  # if points do fall in poly, use fitted line approach
 
   # return lines
   return(list(med_side_line, lat_side_line))
