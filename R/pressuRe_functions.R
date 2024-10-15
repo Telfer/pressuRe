@@ -1386,7 +1386,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
         mask_coord
     }
   } else {
-    #grDevices::x11()
+    grDevices::x11()
     g <- plot_pressure(pressure_data, plot = FALSE)
     #g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
     #g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
