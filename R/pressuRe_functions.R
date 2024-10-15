@@ -832,11 +832,13 @@ auto_detect_side <- function(pressure_data) {
 
   # get midpoints
   midpoint_top <- (side1[2, ] + side2[2, ]) / 2
-  midpoint_bottom <- (side1[1, ] + side2[1, ]) / 2
+  midpoint_R <- (side1[2, ] + side1[1, ]) / 2
+  midpoint_L <- (side2[2, ] + side2[1, ]) / 2
+  midpoint_bottom <- (midpoint_R + midpoint_L) / 2
 
   # make lat and med box
-  side1_pts <- rbind(side1, midpoint_top, midpoint_bottom, side1[1, ])
-  side2_pts <- rbind(side2, midpoint_top, midpoint_bottom, side2[1, ])
+  side1_pts <- rbind(side1[2, ], midpoint_top, midpoint_bottom, midpoint_R, side1[2, ])
+  side2_pts <- rbind(side2[2, ], midpoint_top, midpoint_bottom, midpoint_L, side2[2, ])
   box1 <- st_polygon(list(side1_pts))
   box2 <- st_polygon(list(side2_pts))
 
