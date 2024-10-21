@@ -28,8 +28,10 @@
 
 #' @title Load emed data
 #' @description Imports and formats .lst files collected on emed system and
-#'    exported from Novel software
+#'   exported from Novel software
 #' @param pressure_filepath String. Filepath pointing to emed pressure file
+#' @param trim_active Logical. Restricts frames to only the first continuous
+#'   foot contact
 #' @return A list with information about the pressure data.
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -49,7 +51,7 @@
 #' @importFrom utils read.fwf read.table
 #' @export
 
-load_emed <- function(pressure_filepath) {
+load_emed <- function(pressure_filepath, trim_active = FALSE) {
   # check parameters
   ## file exists
   if (file.exists(pressure_filepath) == FALSE)
@@ -158,6 +160,21 @@ load_emed <- function(pressure_filepath) {
   full_mat <- matrix(NA, nrow = dim(pressure_array)[3], ncol = nrow(active_sensors))
   for (i in 1:dim(pressure_array)[3]) {
     full_mat[i, ] <- pressure_array[, , i][active_sensors]
+  }
+
+  ## reduce to active continuous contact
+  if (trim_active == TRUE) {
+    # force vector
+    fv_ <- full_mat * sens_areas * 1000
+    fv <- rowSums(fv_)
+
+    # detect start and end
+    str_f <- which(fv > 0)[1]
+    end_f_ <- which(fv < 10)
+    end_f <- end_f_[which(end_f_ > (str_f + 20))][1]
+
+    # trim array
+    full_mat <- full_mat[c(str_f:end_f),]
   }
 
   # return formatted emed data
