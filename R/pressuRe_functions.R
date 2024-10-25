@@ -386,11 +386,10 @@ load_pliance <- function(pressure_filepath) {
 #'   \item sensor_polygons. Data frame with corners of sensors
 #'   \item max_matrix. Matrix
 #'  }
-#'  @examples
+#' @examples
 #' tekscan_data <- system.file("extdata", "fscan_testL.asf", package = "pressuRe")
 #' pressure_data <- load_tekscan(tekscan_data)
-#'  @importFrom
-#'  @export
+#' @export
 
 load_tekscan <- function(pressure_filepath) {
   # check parameters
@@ -487,11 +486,11 @@ load_tekscan <- function(pressure_filepath) {
 #'   \item sensor_polygons. Data frame with corners of sensors
 #'   \item max_matrix. Matrix
 #'  }
-#'  @examples
+#' @examples
 #' footscan_data <- system.file("extdata", "footscan_test.xls", package = "pressuRe")
 #' pressure_data <- load_footscan(footscan_data)
-#'  @importFrom readxl read_excel
-#'  @export
+#' @importFrom readxl read_excel
+#' @export
 
 load_footscan <- function(pressure_filepath) {
   # check parameters
@@ -575,11 +574,11 @@ load_footscan <- function(pressure_filepath) {
 #'   \item sensor_polygons. Data frame with corners of sensors
 #'   \item max_matrix. Matrix
 #'  }
-#'  @examples
+#' @examples
 #' xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
 #' pressure_data <- load_xsensor(xsensor_data)
-#'  @importFrom abind abind
-#'  @export
+#' @importFrom abind abind
+#' @export
 load_xsensor <- function(pressure_filepath) {
   # check parameters
   ## file exists

@@ -4,10 +4,13 @@
 \alias{load_emed}
 \title{Load emed data}
 \usage{
-load_emed(pressure_filepath)
+load_emed(pressure_filepath, trim_active = FALSE)
 }
 \arguments{
 \item{pressure_filepath}{String. Filepath pointing to emed pressure file}
+
+\item{trim_active}{Logical. Restricts frames to only the first continuous
+foot contact}
 }
 \value{
 A list with information about the pressure data.
@@ -25,7 +28,7 @@ A list with information about the pressure data.
 }
 \description{
 Imports and formats .lst files collected on emed system and
-   exported from Novel software
+  exported from Novel software
 }
 \examples{
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")

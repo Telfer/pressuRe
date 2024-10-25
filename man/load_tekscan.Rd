@@ -22,13 +22,12 @@ A list with information about the pressure data.
   \item sensor_polygons. Data frame with corners of sensors
   \item max_matrix. Matrix
  }
- @examples
-tekscan_data <- system.file("extdata", "fscan_testL.asf", package = "pressuRe")
-pressure_data <- load_tekscan(tekscan_data)
- @importFrom
- @export
 }
 \description{
 Imports and formats files collected on tekscan systems and
    exported from Tekscan software
+}
+\examples{
+tekscan_data <- system.file("extdata", "fscan_testL.asf", package = "pressuRe")
+pressure_data <- load_tekscan(tekscan_data)
 }

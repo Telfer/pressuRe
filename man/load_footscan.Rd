@@ -22,13 +22,12 @@ A list with information about the pressure data.
   \item sensor_polygons. Data frame with corners of sensors
   \item max_matrix. Matrix
  }
- @examples
-footscan_data <- system.file("extdata", "footscan_test.xls", package = "pressuRe")
-pressure_data <- load_footscan(footscan_data)
- @importFrom readxl read_excel
- @export
 }
 \description{
 Imports and formats files collected on footscan systems
 (formerly RSScan)
+}
+\examples{
+footscan_data <- system.file("extdata", "footscan_test.xls", package = "pressuRe")
+pressure_data <- load_footscan(footscan_data)
 }

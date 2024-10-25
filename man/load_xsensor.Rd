@@ -22,12 +22,11 @@ A list with information about the pressure data.
   \item sensor_polygons. Data frame with corners of sensors
   \item max_matrix. Matrix
  }
- @examples
-xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
-pressure_data <- load_xsensor(xsensor_data)
- @importFrom abind abind
- @export
 }
 \description{
 Imports and formats files collected on xsensor insole systems
+}
+\examples{
+xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
+pressure_data <- load_xsensor(xsensor_data)
 }
