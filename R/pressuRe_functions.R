@@ -3023,6 +3023,58 @@ st_line2polygon <- function(mat, distance, direction) {
 }
 
 
+#' @title low cost path
+#' @description Calculates low cost path
+#' @param mat Matrix.
+#' @param offset_distance Numeric. If matrix does not start at 0, 0
+#' @param start Vector. x and y coords
+#' @param end Vector. x and y coords
+#' @param base_x Numeric
+#' @param base_y Numeric
+#' @param res_scale Numeric
+#' @importFrom sf st_cast st_join st_sf
+#' @importFrom raster raster adjacent extent ncell
+#' @importFrom gdistance transition geoCorrection shortestPath
+#' @importFrom dplyr distinct group_by mutate n summarize across everything
+#' @importFrom stats var
+#' @noRd
+
+shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
+                          res_scale) {
+  ## scale
+  mat_norm <- mat / res_scale
+  r <- raster(mat_norm)
+  raster::extent(r) <- c(base_x * -1, base_x * (ncol(mat_norm) + 1),
+                         offset_distance,
+                         offset_distance + base_y * nrow(mat_norm))
+
+  # line
+  heightDiff <- function(x){x[2] - x[1]}
+  hd <- suppressWarnings(transition(r, heightDiff, 8, symm = FALSE))
+  slope <- geoCorrection(hd, type = "c")
+  adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)
+  speed <- slope
+  speed[adj] <- 6 * exp(-3.5 * abs(slope[adj]))
+  Conductance <- geoCorrection(speed)
+  AtoB <- shortestPath(Conductance, start, end, output = "SpatialLines")
+  line_mat <- st_coordinates(st_as_sf(AtoB))[, c(1, 2)]
+
+  # extend line
+  if (line_mat[1, 1] > line_mat[2, 1]) {
+    line_mat <- rbind(c(line_mat[1, 1] + 1, line_mat[1, 2]), line_mat,
+                      c(line_mat[nrow(line_mat), 1] - 1,
+                        line_mat[nrow(line_mat), 2]))
+  } else {
+    line_mat <- rbind(c(line_mat[1, 1] - 1, line_mat[1, 2]), line_mat,
+                          c(line_mat[nrow(line_mat), 1] + 1,
+                            line_mat[nrow(line_mat), 2]))
+  }
+
+  # return
+  return(line_mat)
+}
+
+
 #' @title Get toe line
 #' @description Calculates line proximal to toes
 #' @param pressure_data List. First item should be a 3D array covering each
@@ -3086,47 +3138,10 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   ## buffer columns
   buffer_col <- rep(0, times = nrow(pf_max_top))
   pf_max_top <- cbind(buffer_col, pf_max_top, buffer_col)
-  ## blockers at top
-  #act_row_1 <- which(rowSums(pf_max_top) > 0)[1]
-  #pf_max_top[act_row_1, ] <- rep(max(pf_max_top), times = ncol(pf_max_top))
-  #pf_max_top[c(act_row_1:(act_row_1 + 2)),
-  #           round(ncol(pf_max_top) / 2)] <- rep(max(pf_max_top), 3)
-
-  ## scale
-  pf_max_top <- pf_max_top / res_scale
-  r <- raster(pf_max_top)
-  raster::extent(r) <- c(base_x * -1, base_x * (ncol(pf_max_top) + 1),
-                         offset_distance,
-                         offset_distance + base_y * nrow(pf_max_top))
 
   # line
-  heightDiff <- function(x){x[2] - x[1]}
-  hd <- suppressWarnings(transition(r, heightDiff, 8, symm = FALSE))
-  slope <- geoCorrection(hd, type = "c")
-  adj <- adjacent(r, cells = 1:ncell(r), pairs = TRUE, directions = 8)
-  speed <- slope
-  speed[adj] <- 6 * exp(-3.5 * abs(slope[adj]))
-  Conductance <- geoCorrection(speed)
-  AtoB <- shortestPath(Conductance, start, end, output = "SpatialLines")
-  toe_line_mat <- st_coordinates(st_as_sf(AtoB))[, c(1, 2)]
-
-  # trim to widest
-  #toe_line_mat <- toe_line_mat[which.max(toe_line_mat[, 1]):which.min(toe_line_mat[, 1]), ]
-
-  # extend ends
-  if (side == "LEFT") {
-    toe_line_mat <- rbind(c(toe_line_mat[1, 1] + 1, toe_line_mat[1, 2]), toe_line_mat,
-                          c(toe_line_mat[nrow(toe_line_mat), 1] - 1,
-                            toe_line_mat[nrow(toe_line_mat), 2]))
-  }
-  if (side == "RIGHT") {
-    toe_line_mat <- rbind(c(toe_line_mat[1, 1] - 1, toe_line_mat[1, 2]), toe_line_mat,
-                          c(toe_line_mat[nrow(toe_line_mat), 1] + 1,
-                            toe_line_mat[nrow(toe_line_mat), 2]))
-  }
-
-  # add offset distance
-  #toe_line_mat[, 2] <- toe_line_mat[, 2] + (offset_row * base_y)
+  toe_line_mat <- shortest_path(mat = pf_max_top, offset_distance, start, end,
+                                base_x, base_y, res_scale)
 
   # return
   return(toe_line_mat)
