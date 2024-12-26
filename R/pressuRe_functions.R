@@ -1,18 +1,19 @@
 # to do (current version)
-# pliance if sensors matrix then add max_matrix
-# fscan processing needs to be checked (work with NA?)
-# in edit_mask, make edit_list a vector that works with numbers or names?
-# change pedar_polygon to sensel_polygon
-# create mask manual work with internal hole
-# make capture frequency a vector to allow for uneven sampling
+## pliance if sensors matrix then add max_matrix
+## fscan processing needs to be checked (work with NA?)
+## in edit_mask, make edit_list a vector that works with numbers or names?
+## change pedar_polygon to sensel_polygon
+## create mask manual work with internal hole
+## make capture frequency a vector to allow for uneven sampling
 
 # to do (future)
-# global pressure_import function (leave for V2)
-# create masks for iscan during startup
-# CPEI manual edit to be built into function
-# add more input tests to throw errors
-# cop for pedar
-# UNITS!!!
+## low cost paths to define heel and forefoot automasks
+## global pressure_import function (leave for V2)
+## create masks for iscan during startup
+## CPEI manual edit to be built into function
+## add more input tests to throw errors
+## cop for pedar
+## UNITS!!!
 
 # data list:
 ## Array. pressure data
@@ -1134,6 +1135,7 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 #'   between sensors to increase data density
 #' @param plot_COP Logical. If TRUE, overlay COP data on plot. Default = FALSE
 #' @param plot_outline Logical. If TRUE, overlay convex hull outline on plot
+#' @param plot_masks Logical. If TRUE, overlay mask outline on plot
 #' @param plot_colors String. "default": novel color scheme; "custom": user
 #' supplied
 #' @param break_values Vector. If plot_colors is "custom", values to split
@@ -1156,8 +1158,9 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 #' @importFrom scales manual_pal
 #' @export
 
-plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame,
-                          step_n = "max", plot_COP = FALSE, plot_outline = FALSE,
+plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE,
+                          frame, step_n = "max", plot_COP = FALSE,
+                          plot_outline = FALSE, plot_masks = FALSE,
                           plot_colors = "default", break_values, break_colors,
                           sensor_outline = TRUE, plot = TRUE, legend = TRUE) {
   # set global variables
@@ -1241,6 +1244,18 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE, frame
     ch_out <- as.data.frame(ch_out)[, c(1, 2)]
     g <- g + geom_path(data = ch_out, aes(x = X, y = Y), colour = "black")
     g <- g + geom_point(data = ch_out, aes(x = X, y = Y), colour = "purple")
+  }
+
+  # add masks
+  if (plot_masks == TRUE) {
+    masks <- pressure_data[[5]]
+    if (length(masks != 0)) {
+      for (n_mask in 1:length(masks)) {
+        mask_plt_df <- data.frame(st_coordinates(masks[[n_mask]])[,1:2])
+        g <- g + geom_path(data = mask_plt_df, aes(X, Y), color = "red",
+                           linewidth = 1)
+      }
+    }
   }
 
   # formatting

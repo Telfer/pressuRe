@@ -12,6 +12,7 @@ plot_pressure(
   step_n = "max",
   plot_COP = FALSE,
   plot_outline = FALSE,
+  plot_masks = FALSE,
   plot_colors = "default",
   break_values,
   break_colors,
@@ -40,6 +41,8 @@ basis}
 \item{plot_COP}{Logical. If TRUE, overlay COP data on plot. Default = FALSE}
 
 \item{plot_outline}{Logical. If TRUE, overlay convex hull outline on plot}
+
+\item{plot_masks}{Logical. If TRUE, overlay mask outline on plot}
 
 \item{plot_colors}{String. "default": novel color scheme; "custom": user
 supplied}
