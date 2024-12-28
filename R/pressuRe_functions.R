@@ -3828,8 +3828,10 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
 
     ## hallux line
     hx_int_top <- st_coordinates(st_intersection(fp_chull, MT_hx_line))
-    hx_int_top_ <- hx_int_top[which.max(hx_int_top[, 2]), c(1, 2)]
-    hx_l <- shortest_path(max_df, 0, st_coordinates(HX_toe_pt)[, c(1, 2)],
+    hx_int_top_ <- unname(hx_int_top[which.max(hx_int_top[, 2]), c(1, 2)])
+    hx_int_top_[2] <- hx_int_top_[2] - 0.0025
+    HX_toe_pt_ <- c(st_coordinates(HX_toe_pt))
+    hx_l <- shortest_path(max_df, 0, HX_toe_pt_,
                           hx_int_top_, 0.005, 0.005, res_scale[4],
                           extend_line = FALSE)
     hx_line <- rbind(c(hx_l[1, 1], hx_l[1, 2] - 1), hx_l,
