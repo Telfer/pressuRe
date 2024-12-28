@@ -3086,7 +3086,7 @@ shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
 
   # extend line
   if (extend_line == TRUE) {
-    if (line_mat[1, 1] > line_mat[2, 1]) {
+    if (line_mat[1, 1] > line_mat[nrow(line_mat), 1]) {
       line_mat <- rbind(c(line_mat[1, 1] + 1, line_mat[1, 2]), line_mat,
                         c(line_mat[nrow(line_mat), 1] - 1,
                           line_mat[nrow(line_mat), 2]))
@@ -3730,7 +3730,7 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
 
   # Define convex hull, expanding to include all sensors
   df_sf <- sens_coords %>%
-    st_as_sf(coords = c( "x", "y" ))
+    st_as_sf(coords = c("x", "y"))
   fp_chull <- st_convex_hull(st_union(df_sf))
   fp_chull <- st_buffer(fp_chull, 0.0025)
 
