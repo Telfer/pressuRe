@@ -8,7 +8,7 @@ create_mask_auto(
   pressure_data,
   masking_scheme,
   foot_side = "auto",
-  res_value = 10000,
+  res_value = c(10000, 10000, 1e+05, 10000),
   plot = TRUE,
   template_mask = NULL
 )
@@ -23,23 +23,29 @@ of the measurement. z dimension represents time}
 "automask_novel" attempts to apply a 9-part mask (hindfoot, midfoot, mets,
 hallux, lesser toes), similar to the standard novel automask
 "pedar_mask1" splits the insole into 4 regions using sensel boundaries:
-hindfoot, midfoot, forefoot, and toes- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
+hindfoot, midfoot, forefoot, and toes-
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9470545/
 "pedar_mask2" splits the insole into 4 regions using percentages:
-hindfoot, forefoot, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
+hindfoot, forefoot, hallux, and lesser toes-
+https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-18
 "pedar_mask3" splits the foot into 9 regions using sensel boundaries:
  medial hindfoot, lateral hindfoot, medial midfoot, lateral midfoot, MTPJ1,
- MTPJ2-3, MTPJ4-5, hallux, and lesser toes- https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20}
+ MTPJ2-3, MTPJ4-5, hallux, and lesser toes-
+ https://jfootankleres.biomedcentral.com/articles/10.1186/1757-1146-7-20}
 
 \item{foot_side}{String. "RIGHT", "LEFT", or "auto". Auto uses
 auto_detect_side function}
 
-\item{res_value}{Numeric. Adjusting this can help if the line between the forefoot and toes
-isn't correct. Default is 100000. This line is calculated using a least cost function and this
-parameter basically adjusts the resistance of the pressure value for that algorithm}
+\item{res_value}{Numeric vector. Adjusting these values can help if the heel,
+midfoot, toe, and hallux lines aren't correct. Default values are c(10000,
+10000, 100000, 10000). These lines are calculated using a least cost function
+and the parameter essentially adjusts the resistance of the pressure value
+for that algorithm}
 
 \item{plot}{Logical. Whether to play the animation}
 
-\item{template_mask}{Data frame. Mask to be used if "template_mask" is selected as the masking scheme}
+\item{template_mask}{Data frame. Mask to be used if "template_mask" is
+selected as the masking scheme}
 }
 \value{
 List. Masks are added to pressure data variable
@@ -60,5 +66,5 @@ Automatically creates mask for footprint data
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-res_value = 100000, foot_side = "auto", plot = FALSE)
+res_value = c(10000, 10000, 100000, 10000), foot_side = "auto", plot = FALSE)
 }
