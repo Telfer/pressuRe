@@ -3097,6 +3097,18 @@ shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
     }
   }
 
+  # remove colinear points
+  is_colinear <- function(p1, p2, p3) {
+    area <- abs((p1[1] * p2[2] + p2[1] * p3[2] + p3[1] * p1[2]) -
+      (p1[2] * p2[1] + p2[2] * p3[1] + p3[2] * p1[1])) / 2
+    return(area < 0.0000001)
+  }
+  line_df <- data.frame(x = line_mat[, 1], y = line_mat[, 2])
+  colinear_inds <- sapply(2:(nrow(line_df) - 1),
+                          function(i) is_colinear(line_df[i - 1, ], line_df[i, ],
+                                                  line_df[i + 1,]))
+  line_mat <- line_mat[!(c(FALSE, colinear_inds)), ]
+
   # return
   return(line_mat)
 }
