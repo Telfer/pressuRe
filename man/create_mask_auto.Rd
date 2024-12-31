@@ -8,7 +8,7 @@ create_mask_auto(
   pressure_data,
   masking_scheme,
   foot_side = "auto",
-  res_value = c(10000, 10000, 1e+05, 10000),
+  res_value = c(20000, 20000, 1e+05, 20000),
   plot = TRUE,
   template_mask = NULL
 )
@@ -66,5 +66,5 @@ Automatically creates mask for footprint data
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-res_value = c(10000, 10000, 100000, 10000), foot_side = "auto", plot = FALSE)
+res_value = c(20000, 20000, 100000, 20000), foot_side = "auto", plot = FALSE)
 }

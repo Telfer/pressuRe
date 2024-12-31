@@ -1570,7 +1570,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_novel",
-#' res_value = c(10000, 10000, 100000, 10000), foot_side = "auto", plot = FALSE)
+#' res_value = c(20000, 20000, 100000, 20000), foot_side = "auto", plot = FALSE)
 #' @importFrom zoo rollapply
 #' @importFrom sf st_union st_difference
 #' @export
@@ -2490,7 +2490,7 @@ getMinBBox <- function(xy) {
 
   mat <- rbind(side1_, side2_)
 
-  #return(list(pts=pts, width=widths[eMin], height=heights[eMin]))
+  # return
   return(mat)
 }
 
@@ -3198,63 +3198,98 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
 
 edge_lines <- function(pressure_data, side) {
   # global variables
-  x <- y <- x_coord <- y_coord <- me <- sc_df <- NULL
+  x <- y <- x_coord <- y_coord <- me <- sc_df <- mbb <- NULL
 
   # max pressure image
   max_fp <- pressure_data[[8]]
 
   # coordinates
-  sens_coords <- pressure_data[[7]]
+  sens_coords <- pressure_data[[7]][, c(1, 2)]
+  sens_coords_m <- as.matrix(sens_coords)
+  mbb <- getMinBBox(sens_coords_m)
 
-  # Find longest vectors (these are the med and lat edges of the footprint)
-  ## reduced set of coords
-  len_fp <- max(sens_coords$y) - min(sens_coords$y)
-  toe_y <- len_fp * 0.8
-  heel_y <- len_fp * 0.1
-  mid_low <- len_fp * 0.3
-  mid_high <- len_fp * 0.6
-  sens_coords_reduced <- sens_coords %>% filter(y < toe_y) %>%
-    filter(y > heel_y) %>% filter(y < mid_low | y > mid_high)
-  sens_y <- unique(sens_coords_reduced$y)
+  # find chull
+  # Define convex hull, expanding to include all sensors
+  df_sf <- sens_coords %>%
+    st_as_sf(coords = c("x", "y"))
+  fp_chull <- st_convex_hull(st_union(df_sf))
+  fp_chull <- st_buffer(fp_chull, 0.0025)
 
-  ## make edges
-  med_edge <- data.frame(x = rep(NA, length.out = length(sens_y)),
-                         y = sens_y)
-  lat_edge <- med_edge
-  for (i in 1:length(sens_y)) {
-    med_edge[i, 1] <- sens_coords_reduced %>% filter(y == sens_y[i]) %>%
-      summarise(me = max(x)) %>% pull(me)
-    lat_edge[i, 1] <- sens_coords %>% filter(y == sens_y[i]) %>%
-      summarise(me = min(x)) %>% pull(me)
-  }
+  # find foot angle
+  side1 <- mbb[c(1:2), ]
+  foot_angle <- atan((side1[2, 1] - side1[1, 1]) / (side1[2, 2] - side1[1, 2]))
+  foot_angle_ <- foot_angle * 180 / pi
+
+  # polys
+  poly_08_up <- cx_poly(sens_coords_m, 0.8, "+Y")
+  poly_075_up <- cx_poly(sens_coords, 0.75, "+Y")
+  poly_06_down <- cx_poly(sens_coords, 0.6, "-Y")
+  poly_03_up <- cx_poly(sens_coords, 0.3, "+Y")
+  poly_01_down <- cx_poly(sens_coords, 0.1, "-Y")
+
+  # top part medial (0.6 - 0.8)
+  top_med_ <- st_difference(fp_chull, poly_06_down)
+  top_med <- st_coordinates(st_difference(top_med_, poly_08_up))[, c(1, 2)]
+
+  # top part lateral (0.6 - 0.75)
+  top_lat_ <- st_difference(fp_chull, poly_075_up)
+  top_lat <- st_coordinates(st_difference(top_lat_, poly_06_down))[, c(1, 2)]
+
+  # bottom part (0.1 - 0.3)
+  bot_ <- st_difference(fp_chull, poly_03_up)
+  bot <- st_coordinates(st_difference(bot_, poly_01_down))[, c(1, 2)]
+
+  # rotate coords
+  top_med_rot <- rot_pts(top_med, foot_angle * -1)
+  top_lat_rot <- rot_pts(top_lat, foot_angle * -1)
+  bot_rot <- rot_pts(bot, foot_angle * -1)
+
+  # find extremes
   if (side == "RIGHT") {
-    x <- med_edge
-    med_edge <- lat_edge
-    lat_edge <- x
+    ff_med <- rot_pts(top_med_rot[which.min(top_med_rot[, 1]), ], foot_angle)
+    ff_lat <- rot_pts(top_lat_rot[which.max(top_lat_rot[, 1]), ], foot_angle)
+    heel_med <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_angle)
+    heel_lat <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_angle)
+  }
+  if (side == "LEFT") {
+    ff_med <- rot_pts(top_med_rot[which.max(top_med_rot[, 1]), ], foot_angle)
+    ff_lat <- rot_pts(top_lat_rot[which.min(top_lat_rot[, 1]), ], foot_angle)
+    heel_med <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_angle)
+    heel_lat <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_angle)
   }
 
-  ### convex hulls of edges
-  med_edge_sf <- med_edge %>% st_as_sf(coords = c("x", "y"))
-  med_edge_chull <- st_convex_hull(st_combine(med_edge_sf))
-  lat_edge_sf <- lat_edge %>% st_as_sf(coords = c("x", "y"))
-  lat_edge_chull <- st_convex_hull(st_combine(lat_edge_sf))
-
-  ## longest med and lateral edge line
-  me_dis <- as.matrix(dist(st_coordinates(med_edge_chull)))
-  me_dis <- me_dis[row(me_dis) == (col(me_dis) - 1)]
-  me_max <- order(me_dis)[length(me_dis)]
-  med_side <- st_coordinates(med_edge_chull)[c(me_max, me_max + 1), c(1, 2)]
-  med_side_line <- st_linestring(med_side)
-  med_side_line <- st_extend_line(med_side_line, 2)
-  le_dis <- as.matrix(dist(st_coordinates(lat_edge_chull)))
-  le_dis <- le_dis[row(le_dis) == (col(le_dis) - 1)]
-  le_max <- order(le_dis)[length(le_dis) - 1]
-  lat_side <- st_coordinates(lat_edge_chull)[c(le_max, le_max + 1), c(1, 2)]
-  lat_side_line <- st_linestring(lat_side)
-  lat_side_line <- st_extend_line(lat_side_line, 2)
+  # lines
+  med_side_line_ <- st_linestring(rbind(heel_med, ff_med))
+  med_side_line <- st_extend_line(med_side_line_, 3)
+  lat_side_line_ <- st_linestring(rbind(heel_lat, ff_lat))
+  lat_side_line <- st_extend_line(lat_side_line_, 3)
 
   # return lines
   return(list(med_side_line, lat_side_line))
+}
+
+
+#' poly as a percentage of min bbox
+#' @noRd
+
+cx_poly <- function(sens_coords, perc, direction) {
+  # bounding box
+  sens_coords_m <- as.matrix(sens_coords)
+  mbb <- getMinBBox(sens_coords_m)
+
+  ## Bounding box sides
+  side1 <- mbb[c(1:2), ]
+  side2 <- mbb[c(3:4), ]
+
+  ## Get crossing lines
+  side1_ <- side1[1, ] + ((side1[2, ] - side1[1, ]) * perc)
+  side2_ <- side2[1, ] + ((side2[2, ] - side2[1, ]) * perc)
+  line_ <- st_linestring(as.matrix(rbind(side1_, side2_)))
+  line_ <- st_coordinates(st_extend_line(line_, 1))[, c(1:2)]
+  poly <- st_line2polygon(line_[c(1, nrow(line_)), ], 1, direction)
+
+  # return
+  return(poly)
 }
 
 
