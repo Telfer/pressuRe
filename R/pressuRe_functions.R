@@ -1576,7 +1576,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
-                             res_value = c(10000, 10000, 100000, 10000),
+                             res_value = c(20000, 20000, 100000, 20000),
                              plot = TRUE, template_mask = NULL) {
   # simple
   if (masking_scheme == "automask_simple") {
@@ -3322,7 +3322,7 @@ icp_mask <- function(x, y, mask_list, iterations = 100, mindist = 1e15,
   }
 
   # type
-  type <- match.arg(type,c("rigid", "similarity", "affine"))
+  type <- match.arg(type, c("rigid", "similarity", "affine"))
 
   # temporary moving coords
   xtmp <- x
