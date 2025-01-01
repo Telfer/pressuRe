@@ -3154,7 +3154,7 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
   active_rows <- which(rowSums(pf_max_top) > 0)
   active_row_1 <- active_rows[1]
-  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.25)
+  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.22)
   row_70 <- round((nrow(pf_max_top) - active_row_1) * 0.7)
 
   ## start point
