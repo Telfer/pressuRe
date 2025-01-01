@@ -3217,13 +3217,14 @@ edge_lines <- function(pressure_data, side) {
 
   # find foot angle
   side1 <- mbb[c(1:2), ]
-  foot_angle <- atan((side1[2, 1] - side1[1, 1]) / (side1[2, 2] - side1[1, 2]))
-  foot_angle_ <- foot_angle * 180 / pi
+  foot_angle_ <- atan((side1[2, 1] - side1[1, 1]) / (side1[2, 2] - side1[1, 2]))
+  foot_ang <- foot_angle_ * 180 / pi
 
   # polys
   poly_08_up <- cx_poly(sens_coords_m, 0.8, "+Y")
   poly_075_up <- cx_poly(sens_coords, 0.75, "+Y")
   poly_06_down <- cx_poly(sens_coords, 0.6, "-Y")
+  poly_055_down <- cx_poly(sens_coords, 0.55, "-Y")
   poly_03_up <- cx_poly(sens_coords, 0.3, "+Y")
   poly_01_down <- cx_poly(sens_coords, 0.1, "-Y")
 
@@ -3231,31 +3232,31 @@ edge_lines <- function(pressure_data, side) {
   top_med_ <- st_difference(fp_chull, poly_06_down)
   top_med <- st_coordinates(st_difference(top_med_, poly_08_up))[, c(1, 2)]
 
-  # top part lateral (0.6 - 0.75)
+  # top part lateral (0.55 - 0.75)
   top_lat_ <- st_difference(fp_chull, poly_075_up)
-  top_lat <- st_coordinates(st_difference(top_lat_, poly_06_down))[, c(1, 2)]
+  top_lat <- st_coordinates(st_difference(top_lat_, poly_055_down))[, c(1, 2)]
 
   # bottom part (0.1 - 0.3)
   bot_ <- st_difference(fp_chull, poly_03_up)
   bot <- st_coordinates(st_difference(bot_, poly_01_down))[, c(1, 2)]
 
   # rotate coords
-  top_med_rot <- rot_pts(top_med, foot_angle * -1)
-  top_lat_rot <- rot_pts(top_lat, foot_angle * -1)
-  bot_rot <- rot_pts(bot, foot_angle * -1)
+  top_med_rot <- rot_pts(top_med, foot_ang)
+  top_lat_rot <- rot_pts(top_lat, foot_ang)
+  bot_rot <- rot_pts(bot, foot_ang)
 
   # find extremes
   if (side == "RIGHT") {
-    ff_med <- rot_pts(top_med_rot[which.min(top_med_rot[, 1]), ], foot_angle)
-    ff_lat <- rot_pts(top_lat_rot[which.max(top_lat_rot[, 1]), ], foot_angle)
-    heel_med <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_angle)
-    heel_lat <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_angle)
+    ff_med <- rot_pts(top_med_rot[which.min(top_med_rot[, 1]), ], foot_ang * -1)
+    ff_lat <- rot_pts(top_lat_rot[which.max(top_lat_rot[, 1]), ], foot_ang * -1)
+    heel_med <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_ang * -1)
+    heel_lat <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_ang * -1)
   }
   if (side == "LEFT") {
-    ff_med <- rot_pts(top_med_rot[which.max(top_med_rot[, 1]), ], foot_angle)
-    ff_lat <- rot_pts(top_lat_rot[which.min(top_lat_rot[, 1]), ], foot_angle)
-    heel_med <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_angle)
-    heel_lat <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_angle)
+    ff_med <- rot_pts(top_med_rot[which.max(top_med_rot[, 1]), ], foot_ang * -1)
+    ff_lat <- rot_pts(top_lat_rot[which.min(top_lat_rot[, 1]), ], foot_ang * -1)
+    heel_med <- rot_pts(bot_rot[which.max(bot_rot[, 1]), ], foot_ang * -1)
+    heel_lat <- rot_pts(bot_rot[which.min(bot_rot[, 1]), ], foot_ang * -1)
   }
 
   # lines
