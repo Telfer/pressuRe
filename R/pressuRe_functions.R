@@ -832,8 +832,7 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' auto_detect_side(pressure_data)
-#' @importFrom sf st_polygon st_as_sf st_convex_hull st_combine
-#' st_intersection st_area
+#' @importFrom sf st_polygon st_as_sf st_area st_filter
 #' @importFrom stats dist
 #' @export
 
@@ -1779,8 +1778,8 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @author Scott Telfer \email{scott.telfer@gmail.com}
 #' @param pressure_data List. First item is a 3D array covering each timepoint
 #' of the measurement. Not currently available for pedar.
-#' @param foot_side String. "right" or "left". Required for automatic detection of
-#'   points
+#' @param foot_side String. "right" or "left". Required for automatic detection
+#' of points
 #' @param plot_result Logical. Plots pressure image with COP and CPEI overlaid
 #' @return Numeric. CPEI value
 #' @examplesIf interactive()
@@ -1788,6 +1787,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' pressure_data <- load_emed(emed_data)
 #' cpei(pressure_data, foot_side = "auto", plot_result = FALSE)
 #' @importFrom sf st_convex_hull st_linestring st_distance st_coordinates
+#' st_intersection
 #' @importFrom dplyr pull summarise
 #' @export
 
@@ -2001,7 +2001,7 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
 #' pressure_data <- load_emed(emed_data)
 #' pressure_data <- create_mask_auto(pressure_data, "automask_simple", plot = FALSE)
 #' mask_analysis(pressure_data, FALSE, variable = "press_peak_sensor")
-#' @importFrom sf st_intersects st_geometry st_area
+#' @importFrom sf st_intersects st_geometry st_area st_intersection
 #' @importFrom pracma trapz
 #' @export
 
@@ -2238,7 +2238,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' arch_index(pressure_data)
-#' @importFrom sf st_bbox
+#' @importFrom sf st_bbox st_intersection
 #' @export
 
 arch_index <- function(pressure_data, plot = TRUE) {
@@ -3772,7 +3772,7 @@ sensor_centroid <- function(pressure_data) {
 #'   \item events. List
 #'  }
 #' @importFrom zoo rollapply
-#' @importFrom sf st_union st_difference
+#' @importFrom sf st_union st_difference st_intersection
 #' @noRd
 
 automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
