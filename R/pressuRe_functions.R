@@ -3152,7 +3152,8 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   pf_max <- pressure_data[[8]]
 
   # sensor dimensions
-  sens_1 <- pressure_data[[7]] %>% filter(id == unique(pressure_data[[7]]$id)[50])
+  sens_1 <- pressure_data[[7]] %>%
+    filter(id == unique(pressure_data[[7]]$id)[50])
   base_x <- max(sens_1$x) - min(sens_1$x)
   base_y <- max(sens_1$y) - min(sens_1$y)
 
@@ -3173,8 +3174,8 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
   active_rows <- which(rowSums(pf_max_top) > 0)
   active_row_1 <- active_rows[1]
-  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.22)
-  row_70 <- round((nrow(pf_max_top) - active_row_1) * 0.7)
+  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.25)
+  row_70 <- round((nrow(pf_max_top) - active_row_1) * 0.6)
 
   ## start point
   start_y <- offset_distance + (nrow(pf_max_top) * base_y) -
