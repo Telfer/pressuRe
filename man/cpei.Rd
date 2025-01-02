@@ -10,8 +10,8 @@ cpei(pressure_data, foot_side, plot_result = TRUE)
 \item{pressure_data}{List. First item is a 3D array covering each timepoint
 of the measurement. Not currently available for pedar.}
 
-\item{foot_side}{String. "right" or "left". Required for automatic detection of
-points}
+\item{foot_side}{String. "right" or "left". Required for automatic detection
+of points}
 
 \item{plot_result}{Logical. Plots pressure image with COP and CPEI overlaid}
 }

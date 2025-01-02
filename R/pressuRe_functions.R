@@ -832,7 +832,8 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
 #' auto_detect_side(pressure_data)
-#' @importFrom sf st_polygon st_as_sf st_area st_filter
+#' @importFrom sf st_polygon st_as_sf st_area st_filter st_convex_hull
+#' st_intersection
 #' @importFrom stats dist
 #' @export
 
@@ -850,8 +851,8 @@ auto_detect_side <- function(pressure_data) {
   # get points
   side1_30 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.3)
   side2_30 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.3)
-  side1_60 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.6)
-  side2_60 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.6)
+  side1_60 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.7)
+  side2_60 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.7)
   midpt_30 <- (side1_30 + side2_30) / 2
   midpt_60 <- (side1_60 + side2_60) / 2
   midpt_top <- (side1[2, ] + side2[2, ]) / 2
@@ -871,17 +872,17 @@ auto_detect_side <- function(pressure_data) {
   # make chull
   df.sf <- pressure_data[[7]][, c(1, 2)] %>%
     st_as_sf(coords = c( "x", "y" ))
-  #fp_chull <- st_convex_hull(st_combine(df.sf))
+  fp_chull <- st_convex_hull(st_combine(df.sf))
 
   # count
-  ffbox1_count <- length(st_filter(df.sf, ffbox1)[[1]])
-  ffbox2_count <- length(st_filter(df.sf, ffbox2)[[1]])
+  #ffbox1_count <- length(st_filter(df.sf, ffbox1)[[1]])
+  #ffbox2_count <- length(st_filter(df.sf, ffbox2)[[1]])
   mfbox1_count <- length(st_filter(df.sf, mfbox1)[[1]])
   mfbox2_count <- length(st_filter(df.sf, mfbox2)[[1]])
 
   # area in each half box
-  #side1_count <- st_area(st_intersection(fp_chull, box1))
-  #side2_count <- st_area(st_intersection(fp_chull, box2))
+  ffbox1_count <- st_area(st_intersection(fp_chull, ffbox1))
+  ffbox2_count <- st_area(st_intersection(fp_chull, ffbox2))
 
   count_1 <- ffbox1_count
   count_2 <- ffbox2_count
