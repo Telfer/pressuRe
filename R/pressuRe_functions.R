@@ -884,15 +884,21 @@ auto_detect_side <- function(pressure_data) {
   ffbox1_count <- st_area(st_intersection(fp_chull, ffbox1))
   ffbox2_count <- st_area(st_intersection(fp_chull, ffbox2))
 
-  count_1 <- ffbox1_count
-  count_2 <- ffbox2_count
+  # ratio
+  ff_ratio <- ffbox1_count / ffbox2_count
+  mf_ratio <- mfbox2_count / mfbox1_count
+  weighted_ratios <- mean(c(ff_ratio, mf_ratio * 0.5))
+  #count_1 <- ffbox1_count
+  #count_2 <- ffbox2_count
 
   # side
-  if (count_1 < count_2) {
-    side <- "RIGHT"
-  } else {
-    side <- "LEFT"
-  }
+  if (weighted_ratios < 1) {side <- "RIGHT"}
+  if (weighted_ratios > 1) {side <- "LEFT"}
+  #if (count_1 < count_2) {
+  #  side <- "RIGHT"
+  ##} else {
+  #  side <- "LEFT"
+  #}
 
   # Return side
   return(side)
