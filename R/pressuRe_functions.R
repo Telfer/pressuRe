@@ -848,29 +848,47 @@ auto_detect_side <- function(pressure_data) {
   side1 <- mbb[c(1, 2), ]
   side2 <- mbb[c(3, 4), ]
 
-  # get midpoints
-  midpoint_top <- (side1[2, ] + side2[2, ]) / 2
-  midpoint_R <- (side1[2, ] + side1[1, ]) / 2
-  midpoint_L <- (side2[2, ] + side2[1, ]) / 2
-  midpoint_bottom <- (midpoint_R + midpoint_L) / 2
+  # get points
+  side1_30 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.3)
+  side2_30 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.3)
+  side1_60 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.6)
+  side2_60 <- side2[1, ] + ((side2[2, ] - side2[1, ]) * 0.6)
+  midpt_30 <- (side1_30 + side2_30) / 2
+  midpt_60 <- (side1_60 + side2_60) / 2
+  midpt_top <- (side1[2, ] + side2[2, ]) / 2
 
-  # make lat and med box
-  side1_pts <- rbind(side1[2, ], midpoint_top, midpoint_bottom, midpoint_R, side1[2, ])
-  side2_pts <- rbind(side2[2, ], midpoint_top, midpoint_bottom, midpoint_L, side2[2, ])
-  box1 <- st_polygon(list(side1_pts))
-  box2 <- st_polygon(list(side2_pts))
+  # make lat and med forefoot boxes
+  ff1_pts <- rbind(side1[2, ], midpt_top, midpt_60, side1_60, side1[2, ])
+  ff2_pts <- rbind(side2[2, ], midpt_top, midpt_60, side2_60, side2[2, ])
+  ffbox1 <- st_polygon(list(ff1_pts))
+  ffbox2 <- st_polygon(list(ff2_pts))
+
+  # make lat and med midfoot boxes
+  mf1_pts <- rbind(side1_60, midpt_60, midpt_30, side1_30, side1_60)
+  mf2_pts <- rbind(side2_60, midpt_60, midpt_30, side2_30, side2_60)
+  mfbox1 <- st_polygon(list(mf1_pts))
+  mfbox2 <- st_polygon(list(mf2_pts))
 
   # make chull
   df.sf <- pressure_data[[7]][, c(1, 2)] %>%
     st_as_sf(coords = c( "x", "y" ))
-  fp_chull <- st_convex_hull(st_combine(df.sf))
+  #fp_chull <- st_convex_hull(st_combine(df.sf))
+
+  # count
+  ffbox1_count <- length(st_filter(df.sf, ffbox1)[[1]])
+  ffbox2_count <- length(st_filter(df.sf, ffbox2)[[1]])
+  mfbox1_count <- length(st_filter(df.sf, mfbox1)[[1]])
+  mfbox2_count <- length(st_filter(df.sf, mfbox2)[[1]])
 
   # area in each half box
-  side1_count <- st_area(st_intersection(fp_chull, box1))
-  side2_count <- st_area(st_intersection(fp_chull, box2))
+  #side1_count <- st_area(st_intersection(fp_chull, box1))
+  #side2_count <- st_area(st_intersection(fp_chull, box2))
+
+  count_1 <- ffbox1_count
+  count_2 <- ffbox2_count
 
   # side
-  if (side1_count < side2_count) {
+  if (count_1 < count_2) {
     side <- "RIGHT"
   } else {
     side <- "LEFT"
