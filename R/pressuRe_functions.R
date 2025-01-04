@@ -887,7 +887,7 @@ auto_detect_side <- function(pressure_data) {
   # ratio
   ff_ratio <- ffbox1_count / ffbox2_count
   mf_ratio <- mfbox2_count / mfbox1_count
-  weighted_ratios <- mean(c(ff_ratio, mf_ratio * 0.5))
+  weighted_ratios <- mean(c(ff_ratio, mf_ratio))
   #count_1 <- ffbox1_count
   #count_2 <- ffbox2_count
 
