@@ -1607,7 +1607,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     if (pressure_data[[2]] == "pedar")
       stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, res_scale = res_value,
-                              "automask_simple", plot = FALSE)
+                              "automask_simple", foot_side = foot_side,
+                              plot = FALSE)
   }
 
   # full auto mask novel
@@ -1615,7 +1616,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
       stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, "automask_novel",
-                              res_scale = res_value, plot = FALSE)
+                              res_scale = res_value, foot_side = foot_side,
+                              plot = FALSE)
   }
 
   # pedar masks
