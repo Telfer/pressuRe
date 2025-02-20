@@ -755,7 +755,7 @@ pressure_interp <- function(pressure_data, interp_to) {
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
 #'   \item masks. List
-#'   \item events. List
+#'   \item events. Data frame
 #'   \item sensor_polygons. Data frame with corners of sensors
 #'   \item max_matrix. Matrix
 #'   }
@@ -2089,7 +2089,7 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   for (cycle in 1:n_cycle) {
     # get step data
     pressure_data_ <- pressure_data[[1]]
-    if (n_cycle > 1) {
+    if (n_cycle >= 1) {
       cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
       cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
       pressure_data_ <- pressure_data_[c(cyc_str:cyc_end), ]
@@ -2958,9 +2958,9 @@ plot_pedar <- function(pressure_data, pressure_image = "max",
 #' @param col_type String. "default": novel color scheme; "custom": user
 #' supplied
 #' @param break_values Vector. Vector with break values to be used. Should be
-#' one shorter than break_values
+#' one longer than break_colors
 #' @param break_colors Vector. Vector with colors to be used. Should be one
-#' longer than break_values
+#' shorter than break_values
 #' @return Data frame.
 #' @noRd
 
@@ -2985,11 +2985,10 @@ generate_colors <- function(df, col_type = "default", break_values,
   }
 
   # add col column
-  df$cols <- cut(df$value, breaks = break_values,
-                 labels = break_colors)
+  df$cols <- cut(df$value, breaks = break_values, labels = break_colors)
 
-  #return
-  return (df)
+  # return
+  return(df)
 }
 
 #' @title extend st line
