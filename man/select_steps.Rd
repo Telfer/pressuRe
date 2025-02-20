@@ -36,7 +36,7 @@ and not representative of steady state walking so this removes them}
   \item sens_size. Numeric vector with the dimensions of the sensors
   \item time. Numeric value for time between measurements
   \item masks. List
-  \item events. List
+  \item events. Data frame
   \item sensor_polygons. Data frame with corners of sensors
   \item max_matrix. Matrix
   }
