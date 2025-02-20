@@ -1,3 +1,7 @@
+# pressure 0.2.5
+* A bunch of improvements to automasking
+* Minor bug fixes
+
 # pressure 0.2.4
 * arch_index function added (beta version)
 * added link to description

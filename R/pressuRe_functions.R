@@ -2083,13 +2083,15 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
   # process
   if (length(pressure_data[[6]]) == 0) {
     n_cycle = 1
+    has_events <- FALSE
   } else {
     n_cycle = nrow(pressure_data[[6]])
+    has_events <- TRUE
   }
   for (cycle in 1:n_cycle) {
     # get step data
     pressure_data_ <- pressure_data[[1]]
-    if (n_cycle >= 1) {
+    if (n_cycle >= 1 & has_events == TRUE) {
       cyc_str <- unname(unlist(pressure_data[[6]][cycle, 2]))
       cyc_end <- unname(unlist(pressure_data[[6]][cycle, 3]))
       pressure_data_ <- pressure_data_[c(cyc_str:cyc_end), ]
