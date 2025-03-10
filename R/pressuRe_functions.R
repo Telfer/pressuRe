@@ -3626,6 +3626,46 @@ pti_2 <- function(pressure_data_, pressure_data, sens_mask_df, mask) {
   return(val)
 }
 
+#' @title Plantar Pressure Gradient
+#' @description Calculate PPPG
+#' @importFrom rdist cdist
+#' @noRd
+
+ppga <- function(pressure_data_, sens_mask_df, mask) {
+  # sensor centroids
+  sens_coords <- sensor_centroid(pressure_data_)
+
+  # by mask
+  mask_sens <- which(sens_mask_df[, mask] > 0)
+  sens_coords_ <- sens_coords[mask_sens, ]
+
+  # ppga vector
+  ppga <- rep(NA, nrow(sens_coords_))
+
+  # loop through sensors
+  for (sens in 1:nrow(sens_coords_)) {
+    single_mat <- as.matrix(sens_coords_[sens, ])
+    sens_coord_mat <- as.matrix(sens_coords_)
+
+    distances <- cdist(single_mat, sens_coord_mat)
+    surr_sens <- which(distances < 0.009)
+    surr_sens <- surr_sens[surr_sens != sens]
+
+    # pressure difference in all directions
+    p_array <- pressure_data_[[1]]
+    p_array <- p_array[, mask_sens]
+    for (ssens in 1:length(surr_sens)) {
+      pga <- max(abs(p_array[, sens] - p_array[, surr_sens[ssens]]))
+
+      # normalize by distance
+      ppga[sens] <- (pga / distances[surr_sens[ssens]]) / 1000
+    }
+  }
+
+  # return
+  return(max(ppga))
+}
+
 
 #' @title Force time integral
 #' @description Calculate FTI

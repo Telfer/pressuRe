@@ -21,6 +21,7 @@ Imports:
     Morpho,
     pracma,
     raster,
+    rdist,
     readxl,
     Rvcg,
     scales,
