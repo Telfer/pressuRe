@@ -4237,7 +4237,7 @@ pedar_mask3 <- function(pressure_data) {
 
   med_rf_R <- pedar_polygon(pressure_data, c(100:101, 105:107, 112:114,
                                              119:121))
-  lat_rf_R <-pedar_polygon(pressure_data, c(108:111, 115:118, 122:125))
+  lat_rf_R <-pedar_polygon(pressure_data, c(102:104, 108:111, 115:118, 122:125))
   med_mf_R <- pedar_polygon(pressure_data, c(126:128, 133:135, 140:142, 147:149,
                                              154:156))
   lat_mf_R <- pedar_polygon(pressure_data, c(129:132, 136:139, 143:146, 150:153,
