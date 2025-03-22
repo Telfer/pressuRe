@@ -4226,7 +4226,7 @@ pedar_mask2 <- function(pressure_data) {
 pedar_mask3 <- function(pressure_data) {
   # define masks by sensel numbers
   med_rf_L <- pedar_polygon(pressure_data, c(1:2, 6:8, 13:15, 20:22))
-  lat_rf_L <-pedar_polygon(pressure_data, c(9:12, 16:19, 23:26))
+  lat_rf_L <-pedar_polygon(pressure_data, c(3:5, 9:12, 16:19, 23:26))
   med_mf_L <- pedar_polygon(pressure_data, c(27:29, 34:36, 41:43, 48:50, 55:57))
   lat_mf_L <- pedar_polygon(pressure_data, c(30:33, 37:40, 44:47, 51:54, 58:59))
   MTPJ1_L <- pedar_polygon(pressure_data, c(62:63, 69:70, 76:77))
