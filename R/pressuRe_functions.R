@@ -553,7 +553,7 @@ load_footscan <- function(pressure_filepath) {
   }
 
   # return formatted data
-  return(list(pressure_array = pressure_array, pressure_system = "footscan",
+  return(list(pressure_array = full_mat, pressure_system = "footscan",
               sens_size = sens_areas, time = time, masks = NULL, events = NULL,
               sensor_polygon = sens_polygons, max_matrix = max_mat))
 }
