@@ -516,6 +516,9 @@ load_footscan <- function(pressure_filepath) {
   c1 <- unname(unlist(as.vector(pressure_raw[, 1])))
   breaks <- grep("Frame", c1)
 
+  # footprint position offset
+  rects <- grep("Rectangle", c1)
+
   # get capture frequency
   time <- regmatches(c1[breaks[2]], gregexpr("(?<=\\().*?(?=\\))",
                                              c1[breaks[2]], perl = T))[[1]]
@@ -1503,7 +1506,10 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
     sensor_pts <- gglocator(n_sens)
 
     # find which sensors points fall in
-    sensor_polygons <- sens_df_2_polygon(pressure_data[[7]])
+    sens_polys <- pressure_data[[7]]
+    sens_polys[, 1] <- round(sens_polys[, 1], 8)
+    sens_polys[, 2] <- round(sens_polys[, 2], 8)
+    sensor_polygons <- sens_df_2_polygon(sens_polys)
     sensor_list <- c()
     for (pts in 1:n_sens) {
       point <- sf::st_point(c(sensor_pts[pts, 1], sensor_pts[pts, 2]))
