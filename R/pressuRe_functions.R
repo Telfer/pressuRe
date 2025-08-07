@@ -16,15 +16,6 @@
 ## cop for pedar
 ## UNITS!!!
 
-# data list:
-## Array. pressure data
-## String. data type (usually collection system, e.g. emed)
-## Numeric. sens_size. sensor size
-## Numeric. Single number time between samples
-## List. Mask list
-## Data frame. Events (for example, to define start/end of individual steps for insole data)
-## Data frame. Sensor polygon coordinates
-
 
 # =============================================================================
 
@@ -393,7 +384,7 @@ load_pliance <- function(pressure_filepath) {
 #' pressure_data <- load_tekscan(tekscan_data)
 #' @export
 
-load_tekscan <- function(pressure_filepath) {
+load_tekscan <- function(pressure_filepath, rm_inactive = F, rotate = 0) {
   # check parameters
   ## file exists
   if (file.exists(pressure_filepath) == FALSE)
@@ -421,11 +412,18 @@ load_tekscan <- function(pressure_filepath) {
   if (str_detect(pressure_raw[sens_width], "centimeters") == TRUE) {
     sens_size <- sens_size * 0.01
   }
+  if (str_detect(pressure_raw[sens_width], "inches") == TRUE) {
+    sens_size <- sens_size * 0.0254
+  }
 
   # get capture frequency
   time_line <- which(grepl("SECONDS_PER_FRAME", pressure_raw))
   time_ln <- str_split(pressure_raw[time_line], "FRAME ")[[1]][2]
   time <- as.numeric(unlist(str_extract_all(time_ln, "\\d+\\.\\d+")))
+
+  # get pressure units
+  press_unit_line <- which(grepl("UNITS", pressure_raw))
+  press_unit <- str_split(pressure_raw[press_unit_line], "UNITS ")[[1]][2]
 
   # determine position breaks
   breaks <- grep("Frame", pressure_raw)
@@ -435,7 +433,11 @@ load_tekscan <- function(pressure_filepath) {
   row_n <- breaks[2] - breaks[1] - 2
 
   # empty array
-  pressure_array <- array(0, dim = c(row_n, col_n, length(breaks)))
+  if (rotate == 90 | rotate == 270) {
+    pressure_array <- array(0, dim = c(col_n, row_n, length(breaks)))
+  } else {
+    pressure_array <- array(0, dim = c(row_n, col_n, length(breaks)))
+  }
 
   # fill array
   for (i in 1:length(breaks)) {
@@ -444,7 +446,36 @@ load_tekscan <- function(pressure_filepath) {
     z <- read.table(textConnection(y), sep = ",")
     z[z == "B"] <- -1
     z <- as.data.frame(lapply(z, as.numeric))
-    pressure_array[, , i] <- as.matrix(z)
+    z_mat <- as.matrix(z)
+    if (rotate != 0) {
+      if (rotate == 90) {z_mat <- apply(t(z_mat), 2, rev)}
+      if (rotate == 180) {z_mat <- rev(apply(z_mat, 1, rev))}
+      if (rotate == 270) {z_mat <- t(apply(z_mat, 2, rev))}
+    }
+    pressure_array[, , i] <- z_mat
+  }
+
+  # remove zero columns and rows
+  if (rm_inactive == TRUE) {
+    fpc <- apply(simplify2array(pressure_array), 1:2, max)
+
+    ## rows
+    rsums <- rowSums(fpc)
+    minr <- min(which(rsums > 0))
+    maxr <- max(which(rsums > 0))
+
+    ## columns
+    csums <- colSums(fpc)
+    minc <- min(which(csums > 0))
+    maxc <- max(which(csums > 0))
+
+    ## update pressure array
+    pressure_array <- pressure_array[minr:maxr, minc:maxc,]
+  }
+
+  # adjust pressure units if required
+  if (press_unit == "PSI") {
+    pressure_array <- pressure_array * 6.89476
   }
 
   # make max mat
@@ -452,7 +483,11 @@ load_tekscan <- function(pressure_filepath) {
 
   # active sensor polygons
   active_sensors <- which(max_mat > 0, arr.ind = TRUE)
-  sens_polygons <- sensor_2_polygon3(max_mat, sens_size[1], sens_size[2])
+  if (rotate == 90 | rotate == 270) {
+    sens_polygons <- sensor_2_polygon3(max_mat, sens_size[2], sens_size[1])
+  } else {
+    sens_polygons <- sensor_2_polygon3(max_mat, sens_size[1], sens_size[2])
+  }
 
   # active sensor areas
   sens_areas <- sensor_area(sens_polygons)
@@ -464,7 +499,7 @@ load_tekscan <- function(pressure_filepath) {
   }
 
   # return formatted data
-  return(list(pressure_array = pressure_array, pressure_system = "tekscan",
+  return(list(pressure_array = full_mat, pressure_system = "tekscan",
               sens_size = sens_size, time = time, masks = NULL, events = NULL,
               sensor_polygons = sens_polygons, max_matrix = max_mat))
 }
