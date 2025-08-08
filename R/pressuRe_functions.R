@@ -3912,7 +3912,9 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
   line_27 <- st_extend_line(line_27, 1)
   line_27_ints <- st_coordinates(st_intersection(fp_chull, line_27))
   heel_line <- shortest_path(max_df, 0, line_27_ints[1, c(1:2)],
-                             line_27_ints[2, c(1:2)], 0.005, 0.005,
+                             line_27_ints[2, c(1:2)],
+                             pressure_data$sens_size[1],
+                             pressure_data$sens_size[2],
                              res_scale[1])
   heel_line_dist_poly <- st_line2polygon(st_linestring(heel_line), 1, "+Y")
   heel_line_prox_poly <- st_line2polygon(st_linestring(heel_line), 1, "-Y")
