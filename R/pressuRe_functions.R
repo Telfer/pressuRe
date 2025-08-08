@@ -3926,7 +3926,9 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
   line_55 <- st_extend_line(line_55, 1)
   line_55_ints <- st_coordinates(st_intersection(fp_chull, line_55))
   midff_line <- shortest_path(max_df, 0, line_55_ints[1, c(1:2)],
-                              line_55_ints[2, c(1:2)], 0.005, 0.005,
+                              line_55_ints[2, c(1:2)],
+                              pressure_data$sens_size[1],
+                              pressure_data$sens_size[2],
                               res_scale[2])
   midff_line_dist_poly <- st_line2polygon(st_linestring(midff_line), 1, "+Y")
   midff_line_prox_poly <- st_line2polygon(st_linestring(midff_line), 1, "-Y")
@@ -3999,7 +4001,8 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
     hx_int_top_[2] <- hx_int_top_[2] - 0.003
     HX_toe_pt_ <- c(st_coordinates(HX_toe_pt))
     hx_l <- shortest_path(max_df, 0, HX_toe_pt_,
-                          hx_int_top_, 0.005, 0.005, res_scale[4],
+                          hx_int_top_, pressure_data$sens_size[1],
+                          pressure_data$sens_size[2], res_scale[4],
                           extend_line = FALSE)
     hx_line <- rbind(c(hx_l[1, 1], hx_l[1, 2] - 1), hx_l,
                      c(hx_l[nrow(hx_l), 1], hx_l[nrow(hx_l), 2] + 1))
