@@ -1654,8 +1654,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 
   # full auto mask novel
   if (masking_scheme == "automask_novel") {
-    if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
-      stop("automask is not compatible with this type of data")
+    #if (!(pressure_data[[2]] == "emed" || pressure_data[[2]] == "pliance"))
+    #  stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, "automask_novel",
                               res_scale = res_value, foot_side = foot_side,
                               plot = FALSE)
