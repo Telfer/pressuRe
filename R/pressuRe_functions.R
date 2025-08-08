@@ -877,8 +877,7 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 
 auto_detect_side <- function(pressure_data) {
   # throw error if pedar data
-  if (!(pressure_data[[2]] == "emed" | pressure_data[[2]] == "footscan" |
-        pressure_data[[2]] == "pliance"))
+  if (pressure_data[[2]] == "pedar")
     stop("This function currently only works for pressure plate data")
 
   # Bounding box
