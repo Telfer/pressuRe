@@ -1646,15 +1646,14 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
                              res_value = c(20000, 20000, 100000, 50000),
                              plot = TRUE, template_mask = NULL,
-                             hal_start = NULL, toe_start = NULL) {
+                             hal_start = 0.6, toe_start = 0.25) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
       stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, res_scale = res_value,
                               "automask_simple", foot_side = foot_side,
-                              plot = FALSE, hal_start = hal_start,
-                              toe_start = toe_start)
+                              plot = FALSE)
   }
 
   # full auto mask novel
@@ -1663,7 +1662,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
     #  stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, "automask_novel",
                               res_scale = res_value, foot_side = foot_side,
-                              plot = FALSE)
+                              plot = FALSE, hal_start = hal_start,
+                              toe_start = toe_start)
   }
 
   # pedar masks
@@ -3203,7 +3203,7 @@ shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
 #' @noRd
 
 toe_line <- function(pressure_data, side, res_scale,
-                     hal_start = 0.25, toe_start = 0.6) {
+                     hal_start, toe_start) {
   # global variables
   id <- NULL
 
@@ -3233,8 +3233,8 @@ toe_line <- function(pressure_data, side, res_scale,
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
   active_rows <- which(rowSums(pf_max_top) > 0)
   active_row_1 <- active_rows[1]
-  row_25 <- round((nrow(pf_max_top) - active_row_1) * hal_start)
-  row_70 <- round((nrow(pf_max_top) - active_row_1) * toe_start)
+  row_25 <- round((nrow(pf_max_top) - active_row_1) * toe_start)
+  row_70 <- round((nrow(pf_max_top) - active_row_1) * hal_start)
 
   ## start point
   start_y <- offset_distance + (nrow(pf_max_top) * base_y) -
@@ -3879,7 +3879,7 @@ sensor_centroid <- function(pressure_data) {
 #' @noRd
 
 automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
-                     hal_start = 0.25, toe_start = 0.6, plot = TRUE) {
+                     hal_start, toe_start, plot = TRUE) {
   # check data isn't from pedar
   if (pressure_data[[2]] == "pedar")
     stop("automask doesn't work with pedar data")
