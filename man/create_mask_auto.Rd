@@ -8,9 +8,11 @@ create_mask_auto(
   pressure_data,
   masking_scheme,
   foot_side = "auto",
-  res_value = c(20000, 20000, 1e+05, 20000),
+  res_value = c(20000, 20000, 1e+05, 50000),
   plot = TRUE,
-  template_mask = NULL
+  template_mask = NULL,
+  hal_start = NULL,
+  toe_start = NULL
 )
 }
 \arguments{
@@ -46,6 +48,10 @@ for that algorithm}
 
 \item{template_mask}{Data frame. Mask to be used if "template_mask" is
 selected as the masking scheme}
+
+\item{hal_start}{Numeric. Adjust medial start point of toe line}
+
+\item{toe_start}{Numeric. Adjust lateral start point of toe line}
 }
 \value{
 List. Masks are added to pressure data variable

@@ -4,10 +4,14 @@
 \alias{load_tekscan}
 \title{Load Tekscan data}
 \usage{
-load_tekscan(pressure_filepath)
+load_tekscan(pressure_filepath, rm_inactive = F, rotate = 0)
 }
 \arguments{
 \item{pressure_filepath}{String. Filepath pointing to emed pressure file}
+
+\item{rm_inactive}{Logical. Whether to remove inactive rows from dataset}
+
+\item{rotate}{Numeric. Rotate pressure image 90, 180, or 270 degrees}
 }
 \value{
 A list with information about the pressure data.

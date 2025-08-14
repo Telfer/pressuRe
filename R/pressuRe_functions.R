@@ -367,6 +367,8 @@ load_pliance <- function(pressure_filepath) {
 #' @description Imports and formats files collected on tekscan systems and
 #'    exported from Tekscan software
 #' @param pressure_filepath String. Filepath pointing to emed pressure file
+#' @param rm_inactive Logical. Whether to remove inactive rows from dataset
+#' @param rotate Numeric. Rotate pressure image 90, 180, or 270 degrees
 #' @return A list with information about the pressure data.
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -1620,6 +1622,8 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @param plot Logical. Whether to play the animation
 #' @param template_mask Data frame. Mask to be used if "template_mask" is
 #' selected as the masking scheme
+#' @param hal_start Numeric. Adjust medial start point of toe line
+#' @param toe_start Numeric. Adjust lateral start point of toe line
 #' @return List. Masks are added to pressure data variable
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -1640,15 +1644,17 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @export
 
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
-                             res_value = c(20000, 20000, 100000, 20000),
-                             plot = TRUE, template_mask = NULL) {
+                             res_value = c(20000, 20000, 100000, 50000),
+                             plot = TRUE, template_mask = NULL,
+                             hal_start = NULL, toe_start = NULL) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
       stop("automask is not compatible with this type of data")
     pressure_data <- automask(pressure_data, res_scale = res_value,
                               "automask_simple", foot_side = foot_side,
-                              plot = FALSE)
+                              plot = FALSE, hal_start = hal_start,
+                              toe_start = toe_start)
   }
 
   # full auto mask novel
@@ -2318,8 +2324,7 @@ arch_index <- function(pressure_data, plot = TRUE) {
 
   # remove toes
   sens_poly <- sens_df_2_polygon(pressure_data[[7]])
-  mask_fp <- create_mask_auto(pressure_data, "automask_novel",
-                              res_value = 100000, plot = FALSE)
+  mask_fp <- create_mask_auto(pressure_data, "automask_novel", plot = FALSE)
   mask_fp <- mask_fp[[5]]
   not_in_mask <- c()
   for (j in 1:length(sens_poly)) {
@@ -3123,7 +3128,7 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @param end Vector. x and y coords
 #' @param base_x Numeric
 #' @param base_y Numeric
-#' @param res_scale Numeric
+#' @param res_value Numeric
 #' @param extend_line Logical. extends line horizontally
 #' @importFrom sf st_cast st_join st_sf
 #' @importFrom raster raster adjacent extent ncell
@@ -3133,9 +3138,9 @@ st_line2polygon <- function(mat, distance, direction) {
 #' @noRd
 
 shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
-                          res_scale, extend_line = TRUE) {
+                          res_value, extend_line = TRUE) {
   ## scale
-  mat_norm <- mat / res_scale
+  mat_norm <- mat / res_value
   r <- raster(mat_norm)
   raster::extent(r) <- c(base_x * -1, base_x * (ncol(mat_norm) + 1),
                          offset_distance,
@@ -3186,6 +3191,10 @@ shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
 #' @description Calculates line proximal to toes
 #' @param pressure_data List. First item should be a 3D array covering each
 #' timepoint of the measurement. z dimension represents time
+#' @param side String
+#' @param res_scale Numeric
+#' @param hal_start Numeric
+#' @param toe_start Numeric
 #' @importFrom sf st_cast st_join st_sf
 #' @importFrom raster raster adjacent extent ncell
 #' @importFrom gdistance transition geoCorrection shortestPath
@@ -3193,7 +3202,8 @@ shortest_path <- function(mat, offset_distance, start, end, base_x, base_y,
 #' @importFrom stats var
 #' @noRd
 
-toe_line <- function(pressure_data, side, res_scale = 10000) {
+toe_line <- function(pressure_data, side, res_scale,
+                     hal_start = 0.25, toe_start = 0.6) {
   # global variables
   id <- NULL
 
@@ -3223,8 +3233,8 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
   active_cols <- which(apply(pf_max_top, 2, var) != 0)
   active_rows <- which(rowSums(pf_max_top) > 0)
   active_row_1 <- active_rows[1]
-  row_25 <- round((nrow(pf_max_top) - active_row_1) * 0.25)
-  row_70 <- round((nrow(pf_max_top) - active_row_1) * 0.6)
+  row_25 <- round((nrow(pf_max_top) - active_row_1) * hal_start)
+  row_70 <- round((nrow(pf_max_top) - active_row_1) * toe_start)
 
   ## start point
   start_y <- offset_distance + (nrow(pf_max_top) * base_y) -
@@ -3250,7 +3260,7 @@ toe_line <- function(pressure_data, side, res_scale = 10000) {
 
   # line
   toe_line_mat <- shortest_path(mat = pf_max_top, offset_distance, start, end,
-                                base_x, base_y, res_scale)
+                                base_x, base_y, res_scale[3])
 
   # return
   return(toe_line_mat)
@@ -3852,6 +3862,8 @@ sensor_centroid <- function(pressure_data) {
 #' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses
 #' auto_detect_side function
 #' @param plot Logical. Whether to play the animation
+#' @param hal_start Numeric
+#' @param toe_start Numeric
 #' @return List. Masks are added to pressure data variable
 #' \itemize{
 #'   \item pressure_array. 3D array covering each timepoint of the measurement.
@@ -3867,14 +3879,14 @@ sensor_centroid <- function(pressure_data) {
 #' @noRd
 
 automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
-                     plot = TRUE) {
+                     hal_start = 0.25, toe_start = 0.6, plot = TRUE) {
   # check data isn't from pedar
   if (pressure_data[[2]] == "pedar")
     stop("automask doesn't work with pedar data")
 
   # global variables
   x <- y <- mask <- x_coord <- y_coord <- me <- heel_cut_dist <-
-    mfoot_cut_prox <- ffoot_cut_prox <- NULL
+    mfoot_cut_prox <- id <- ffoot_cut_prox <- NULL
 
   # Find footprint (max)
   max_df <- pressure_data[[8]]
@@ -3904,6 +3916,12 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
   side1 <- mbb[c(1:2), ]
   side2 <- mbb[c(3:4), ]
 
+  # sensor dimensions
+  sens_1 <- pressure_data[[7]] %>%
+    filter(id == unique(pressure_data[[7]]$id)[50])
+  base_x <- max(sens_1$x) - min(sens_1$x)
+  base_y <- max(sens_1$y) - min(sens_1$y)
+
   ## Get distal 27% and 55% lines that divide into masks
   ### heel
   side1_27 <- side1[1, ] + ((side1[2, ] - side1[1, ]) * 0.27)
@@ -3913,9 +3931,7 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
   line_27_ints <- st_coordinates(st_intersection(fp_chull, line_27))
   heel_line <- shortest_path(max_df, 0, line_27_ints[1, c(1:2)],
                              line_27_ints[2, c(1:2)],
-                             pressure_data$sens_size[1],
-                             pressure_data$sens_size[2],
-                             res_scale[1])
+                             base_x, base_y, res_value = res_scale[1])
   heel_line_dist_poly <- st_line2polygon(st_linestring(heel_line), 1, "+Y")
   heel_line_prox_poly <- st_line2polygon(st_linestring(heel_line), 1, "-Y")
 
@@ -3927,9 +3943,7 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
   line_55_ints <- st_coordinates(st_intersection(fp_chull, line_55))
   midff_line <- shortest_path(max_df, 0, line_55_ints[1, c(1:2)],
                               line_55_ints[2, c(1:2)],
-                              pressure_data$sens_size[1],
-                              pressure_data$sens_size[2],
-                              res_scale[2])
+                              base_x, base_y, res_scale[2])
   midff_line_dist_poly <- st_line2polygon(st_linestring(midff_line), 1, "+Y")
   midff_line_prox_poly <- st_line2polygon(st_linestring(midff_line), 1, "-Y")
 
@@ -3977,7 +3991,8 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
 
     ## simplify toe line
     ### toe line
-    toe_line_mat <- toe_line(pressure_data, side, res_scale[3])
+    toe_line_mat <- toe_line(pressure_data, side, res_scale,
+                             hal_start = hal_start, toe_start = toe_start)
     HX_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_hx_line)
     MT12_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_12_line)
     MT23_toe_pt <- st_intersection(st_linestring(toe_line_mat), MT_23_line)
@@ -4001,8 +4016,7 @@ automask <- function(pressure_data, mask_scheme, res_scale, foot_side = "auto",
     hx_int_top_[2] <- hx_int_top_[2] - 0.003
     HX_toe_pt_ <- c(st_coordinates(HX_toe_pt))
     hx_l <- shortest_path(max_df, 0, HX_toe_pt_,
-                          hx_int_top_, pressure_data$sens_size[1],
-                          pressure_data$sens_size[2], res_scale[4],
+                          hx_int_top_, base_x, base_y, res_scale[4],
                           extend_line = FALSE)
     hx_line <- rbind(c(hx_l[1, 1], hx_l[1, 2] - 1), hx_l,
                      c(hx_l[nrow(hx_l), 1], hx_l[nrow(hx_l), 2] + 1))
