@@ -1,6 +1,4 @@
 # to do (current version)
-## low cost paths to define heel and forefoot automasks
-## low cost path to define hallux automask
 ## pliance if sensors matrix then add max_matrix
 ## fscan processing needs to be checked (work with NA?)
 ## in edit_mask, make edit_list a vector that works with numbers or names?
@@ -1646,7 +1644,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
                              res_value = c(20000, 20000, 100000, 50000),
                              plot = TRUE, template_mask = NULL,
-                             hal_start = 0.6, toe_start = 0.25) {
+                             hal_start = 0.5, toe_start = 0.2) {
   # simple
   if (masking_scheme == "automask_simple") {
     if (pressure_data[[2]] == "pedar")
@@ -1846,7 +1844,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @importFrom dplyr pull summarise
 #' @export
 
-cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
+cpei <- function(pressure_data, foot_side = "auto", plot_result = TRUE) {
   # check set up
   if (interactive() == FALSE)
     stop("we recommend user reviews each measurement")
@@ -1982,6 +1980,9 @@ cpei <- function(pressure_data, foot_side, plot_result = TRUE) {
     g <- g + geom_line(data = cop_side_df, aes(X, Y), colour = "blue",
                        alpha = 0.8)
     print(g)
+
+    # return
+    return(CPEI)
   }
 
   # manual select function
