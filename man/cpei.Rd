@@ -4,7 +4,7 @@
 \alias{cpei}
 \title{CPEI}
 \usage{
-cpei(pressure_data, foot_side, plot_result = TRUE)
+cpei(pressure_data, foot_side = "auto", plot_result = TRUE)
 }
 \arguments{
 \item{pressure_data}{List. First item is a 3D array covering each timepoint

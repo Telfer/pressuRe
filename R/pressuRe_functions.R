@@ -500,7 +500,7 @@ load_tekscan <- function(pressure_filepath, rm_inactive = F, rotate = 0) {
 
   # return formatted data
   return(list(pressure_array = full_mat, pressure_system = "tekscan",
-              sens_size = sens_size, time = time, masks = NULL, events = NULL,
+              sens_size = sens_areas, time = time, masks = NULL, events = NULL,
               sensor_polygons = sens_polygons, max_matrix = max_mat))
 }
 
@@ -716,6 +716,69 @@ load_xsensor <- function(pressure_filepath) {
 
 # =============================================================================
 
+#' @title Load stappone data
+#' @description Imports and formats .asc files collected on stappone system
+#' @param pressure_filepath String. Filepath pointing to stappone pressure file
+#' @return A list with information about the pressure data.
+#' \itemize{
+#'   \item pressure_array. 3D array covering each timepoint of the measurement.
+#'            z dimension represents time
+#'   \item pressure_system. String defining pressure system
+#'   \item sens_size. String with sensor type
+#'   \item time. Numeric value for time between measurements
+#'   \item masks. List
+#'   \item events. List
+#'   \item sensor_polygons. Data frame with corners of sensors
+#'   \item max_matrix Matrix with maximum image
+#'  }
+#' @examples
+#' stappone_data <- system.file("extdata", "stappone_example.csv", package = "pressuRe")
+#' pressure_data <- load_stappone(stappone_data)
+#' @importFrom stringr str_split str_trim str_detect
+#' @importFrom utils read.csv
+#' @export
+
+load_stappone <- function(pressure_filepath) {
+  # check parameters
+  ## file exists
+  if (file.exists(pressure_filepath) == FALSE)
+    stop("file does not exist")
+
+  ## extension is correct
+  if (str_split(basename(pressure_filepath), "\\.")[[1]][2] != "csv")
+    stop("incorrect file extension, expected .csv")
+
+  # import data
+  pressure_data <- as.data.frame(read.csv(pressure_filepath, header = TRUE))
+
+  # Get time between measurements
+  time <- (pressure_data[2,2] - pressure_data[1, 2]) / 1000
+
+  # make pressure array
+  stapp_colnames <- colnames(pressure_data)
+  pressure_cols <- str_detect(stapp_colnames, "pressure")
+  pressure_array <- as.matrix(pressure_data[, pressure_cols])
+
+  # get sensor polygons
+  sens_polygons <- stappone_insole_polys()
+  sens_polygons$y <- sens_polygons$y + 40
+  if (pressure_data[1, 1] == 1) {
+    sens_polygons$x <- sens_polygons$x + 100
+  }
+  if (pressure_data[1, 1] == 2) {
+    sens_polygons$x <- sens_polygons$x * -1
+  }
+  sens_polygons[, c(2, 3)] <- sens_polygons[, c(2, 3)] / 1000
+
+  # return
+  return(list(pressure_array = pressure_array, pressure_system = "stappone",
+              sens_size = NULL, time = time, masks = NULL,
+              events = NULL, sensor_polygons = sens_polygons, max_matrix = NA))
+}
+
+
+# =============================================================================
+
 #' @title Interpolate pressure data
 #' @description Resamples pressure data over time. Useful for normalizing to
 #' stance phase, for example
@@ -817,8 +880,9 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
     stop("user needs to select suitable steps")
 
   # check this is pedar (or other suitable) data
-  if (!(pressure_data[[2]] == "pedar" || pressure_data[[2]] == "tekscan"))
-    stop("data should be from pedar or f-scan")
+  if (!(pressure_data[[2]] == "pedar" || pressure_data[[2]] == "tekscan" ||
+        pressure_data[[2]] == "stappone"))
+    stop("data should be from pedar, f-scan, or stappone")
 
   # get force df
   if (pressure_data[[2]] == "pedar") {
@@ -1233,14 +1297,26 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE,
     stop("pressure data must contain array")
 
   # if pedar
-  if (pressure_data[[2]] == "pedar") {
-    if (step_n == "max") {pedar_var <- "max"; step_no <- NA}
-    if (step_n == "meanmax") {pedar_var <- "meanmax"; step_no <- NA}
-    if (is.numeric(step_n)) {pedar_var <- "step_max"; step_no <- step_n}
-    cor <- plot_pedar(pressure_data, pedar_var, step_no, foot_side = "both")
-    x_lims <- c(0, max(cor$x))
-    y_lims <- c(0, max(cor$y))
-    legend_spacing <- (cor$x[2] - cor$x[1]) * 10
+  if (pressure_data[[2]] == "pedar" | pressure_data[[2]] == "stappone") {
+    if (pressure_data[[2]] == "pedar") {
+      if (step_n == "max") {pedar_var <- "max"; step_no <- NA}
+      if (step_n == "meanmax") {pedar_var <- "meanmax"; step_no <- NA}
+      if (is.numeric(step_n)) {pedar_var <- "step_max"; step_no <- step_n}
+      cor <- plot_pedar(pressure_data, pedar_var, step_no, foot_side = "both")
+      x_lims <- c(0, max(cor$x))
+      y_lims <- c(0, max(cor$y))
+      legend_spacing <- (cor$x[2] - cor$x[1]) * 10
+    }
+    if (pressure_data[[2]] == "stappone") {
+      if (step_n == "max") {stapp_var <- "max"; step_no <- NA}
+      if (step_n == "meanmax") {stapp_var <- "meanmax"; step_no <- NA}
+      if (is.numeric(step_n)) {stapp_var <- "step_max"; step_no <- step_n}
+      cor <- plot_stappone(pressure_data, stapp_var, step_no, foot_side = "both")
+      x_lims <- c(0, max(cor$x))
+      y_lims <- c(0, max(cor$y))
+      legend_spacing <- (cor$x[2] - cor$x[1]) * 10
+    }
+
   } else {
     # max size of df
     x_lims <- c(-0.005, max(pressure_data[[7]]$x) + 0.005)
@@ -1352,7 +1428,7 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE,
 #' @examplesIf interactive()
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 #' pressure_data <- load_emed(emed_data)
-#' animate_pressure(pressure_data, fps = 10, file_name = "pli_gif.gif")
+#' animate_pressure(pressure_data, fps = 10, file_name = "stapp_gif.gif")
 #' @importFrom stringr str_ends str_pad
 #' @importFrom magick image_graph image_animate image_write image_info
 #' image_read
@@ -2442,6 +2518,9 @@ arch_index <- function(pressure_data, plot = TRUE) {
 #' @noRd
 
 pressure_outline <- function(pressure_data, pressure_image = "max", frame) {
+  # global variables
+  id <- NULL
+
   # check inputs
   if (is.array(pressure_data[[1]]) == FALSE)
     stop("pressure data must contain array")
@@ -2463,7 +2542,10 @@ pressure_outline <- function(pressure_data, pressure_image = "max", frame) {
   fp_chull <- st_convex_hull(st_combine(sens_coords_df))
 
   # add buffer here
-  buffer_size <- pressure_data[[3]][1] / 2
+  sens_1 <- pressure_data[[7]] %>%
+    filter(id == unique(pressure_data[[7]]$id)[1])
+  base_x <- max(sens_1$x) - min(sens_1$x)
+  buffer_size <- base_x / 2
   fp_chull_buffer <- st_buffer(fp_chull, buffer_size)
 
   # return convex hull coordinates
@@ -2665,8 +2747,10 @@ sensor_2_polygon <- function(pressure_data, pressure_image = "all_active",
     sens_coords <- sensor_coords(pressure_data, pressure_image, frame)
 
     # sensor dimensions
-    width <- pressure_data[[3]][1] / 2
-    height <- pressure_data[[3]][2] / 2
+    sens_1 <- pressure_data[[7]] %>%
+      filter(id == unique(pressure_data[[7]]$id)[50])
+    width <- max(sens_1$x) - min(sens_1$x)
+    height <- max(sens_1$y) - min(sens_1$y)
 
     # get corner points and make into polygon
     for (sens in 1:nrow(sens_coords)) {
@@ -2994,6 +3078,47 @@ plot_pedar <- function(pressure_data, pressure_image = "max",
   if (foot_side == "right") {
     df <- df[1:396,]
   }
+
+  # return
+  return(df)
+}
+
+plot_stappone <- function(pressure_data, pressure_image = "max",
+                          foot_side = "left", step_n) {
+  # check this is pedar (or other suitable) data
+  if (!(pressure_data[[2]] == "stappone"))
+    stop("data should be from stappone")
+
+  # pressure image
+  if (pressure_image == "max") {
+    comb_data <- apply(pressure_data[[1]], 2, max)
+  }
+
+  # separate into steps
+  if (pressure_image == "step_max") {
+    events <- pressure_data[[6]]
+    pressure_mat <- pressure_data[[1]]
+    pressure_mat <- pressure_mat[c(events[step_n, 2]:events[step_n, 3]), ]
+    comb_data <- apply(pressure_mat, 2, max)
+  }
+
+  # average across steps
+  if (pressure_image == "meanmax") {
+    comb_data <- footprint(pressure_data, "meanmax")
+  }
+
+  # make ids
+  ids <- 1:12
+
+  # make df
+  df <- data.frame(id = ids, value = comb_data)
+
+  # add coordinates to df
+  position <- pressure_data[[7]]
+  df <- merge(df, position, by = c("id"))
+
+  # add color
+  df <- generate_colors(df)
 
   # return
   return(df)
@@ -4631,4 +4756,56 @@ pedar_insole_grids <- function() {
            0.822, 0.822, 0.822, 0.822, 0.822, 0.822, 0.822, 0.878, 0.878, 0.878,
            0.878, 0.878, 0.878, 0.931, 0.931, 0.931, 0.931))
   return(pedar_insole_grid)
+}
+
+stappone_insole_polys <- function() {
+  stappone_insole_poly <- data.frame(
+    id = c(1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,
+               3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,
+               5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,
+               7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
+               9,9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,
+               10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,12,12,
+               12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12),
+    x = c(-56,-54.52,-55.2,-54.13,-50.7,-47.23,-43.47,-42.74,-40.76,-39.94,
+          -39.89,-44.35,-48.33,-56.84,-56.27,-56,-46.72,-45.72,-46.72,-46.05,
+          -47.07,-44.02,-41.24,-37.84,-39.85,-40.49,-42.29,-42.36,-43.84,-45.37,
+          -46.72,-50.91,-56.1,-62.54,-66.01,-67.68,-66.27,-66.62,-65.41,-65.46,
+          -60.92,-54.81,-54.6,-53.22,-51.91,-48.74,-43.91,-43.94,-50.91,-73.14,
+          -72.27,-70.22,-67.06,-64.79,-66.12,-64.86,-65.75,-64.11,-66.82,-70.08,
+          -73.15,-71.64,-72.89,-73.14,-58.9,-59.58,-59.15,-60.97,-59,-56.91,
+          -54.09,-54.95,-52.09,-53.08,-52.54,-55.44,-58.11,-58.9,-84.07,-85.91,
+          -84.33,-85.38,-83.41,-80.72,-78.66,-78.29,-77.67,-77.71,-77.06,-80.55,
+          -84.07,-90.43,-92.49,-95.92,-94.25,-85.96,-81.34,-75.83,-75.36,-76.09,
+          -69.97,-73.03,-77.03,-82.12,-80.45,-77.01,-83.18,-88.26,-88.09,-88.33,
+          -89.53,-90.43,-86.59,-87.2,-89.06,-87.86,-83.87,-80.61,-76.5,-75.3,
+          -76.55,-75.51,-74.57,-75.37,-78.6,-81.96,-84.37,-86.59,-96.13,-96.15,
+          -96.77,-95.17,-94.17,-92.88,-90.75,-92.37,-90.14,-91.01,-89.47,-92.01,
+          -96.13,-71.21,-67.92,-69.43,-70.24,-67.89,-62.94,-57.2,-51.16,-50.06,
+          -49.22,-50.56,-49.17,-50.23,-55.39,-61.49,-67.35,-71.21,-68.43,-62.23,
+          -57.02,-49.47,-49.91,-49.64,-48.93,-52.15,-56.87,-61.92,-68.65,-68.06,
+          -68.44,-66.49,-68.43,-94.04,-92.51,-88.27,-82.66,-73.33,-67.15,-63.8,
+          -59.97,-63.42,-61.53,-64.75,-64.18,-71.24,-78.26,-86.5,-91.57,-93.62,
+          -95.17,-94.04),
+    y = c(172.4,182.96,189.6,191.09,191,189.58,186.43,177.18,166.89,158.35,
+          153.56,153.63,155.6,153.67,162.52,172.4,113.16,119.21,129.51,139.74,
+          147.42,148.93,146.53,141.62,134.16,125.41,118.91,113.96,112.08,112.17,
+          113.16,101.5,100.17,102.71,97.81,91.11,82.67,73.42,67.08,61.17,59.3,
+          59.74,66.74,74.09,83.75,93.94,99.33,106.43,101.5,138.19,144.81,148.12,
+          148.19,144.26,137.25,126.94,118.54,112.2,109.68,110.58,114.33,120.99,
+          129.99,138.19,114.37,120.03,131,141.48,148.83,149.52,148.89,139.38,
+          129.43,118.84,112.38,111.24,111.99,114.37,107.28,114.92,125.6,136.65,
+          142.63,144.43,141.84,134.41,124.24,114.24,108.14,105.59,107.28,57.43,
+          75.09,87.29,98.92,95.75,94.34,95.12,77.84,64.32,47.13,40.87,37.76,
+          29.92,19.93,7.04,5.39,4.11,11.99,22.94,39.73,57.43,-20.51,-12.53,
+          -4.55,-2.21,-2.31,-2.91,-2.05,-3.75,-9.79,-17.04,-24.15,-28.1,-29.23,
+          -29.83,-27.76,-20.51,103.48,111.49,119.1,128.79,132.74,136,134.36,
+          130.34,123.77,115.15,107.83,102.81,103.48,-0.68,11.9,20.03,30.84,
+          34.14,36.16,32.12,27.18,19.04,11.18,5.16,1.24,-0.36,-0.56,0.14,-1.6,
+          -0.68,-8.88,-5.29,-6.75,-5.67,-11.56,-16.77,-23.77,-29.67,-35.33,
+          -36.73,-39.08,-33.04,-25.57,-16.87,-8.88,143.75,150.85,161.91,176.59,
+          184.91,191.73,195.23,195.52,184.63,174.29,162.8,155.65,155.32,151.79,
+          145.75,143.17,141,141.86,143.75)
+  )
+  return(stappone_insole_poly)
 }

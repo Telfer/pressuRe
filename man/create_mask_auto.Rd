@@ -11,8 +11,8 @@ create_mask_auto(
   res_value = c(20000, 20000, 1e+05, 50000),
   plot = TRUE,
   template_mask = NULL,
-  hal_start = NULL,
-  toe_start = NULL
+  hal_start = 0.5,
+  toe_start = 0.2
 )
 }
 \arguments{
