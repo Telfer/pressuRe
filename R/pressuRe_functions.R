@@ -25,8 +25,8 @@
 #'   foot contact
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the areas of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -101,7 +101,8 @@ load_emed <- function(pressure_filepath, trim_active = FALSE) {
 
       # load as table
       y <- pressure_raw[(breaks[str] + 10):(ends[which(ends > breaks[str])[1]] - 1)]
-      z <- read.table(textConnection(y), sep = "", header = TRUE)
+      z <- read.table(textConnection(y), sep = "\t", header = TRUE, row.names = 1,
+                      strip.white = TRUE, na.strings = "")
 
       # remove zeros
       z[is.na(z)] <- 0
@@ -183,8 +184,8 @@ load_emed <- function(pressure_filepath, trim_active = FALSE) {
 #' @param pressure_filepath String. Filepath pointing to pedar pressure file
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. String with sensor type
 #'   \item time. Numeric value for time between measurements
@@ -254,8 +255,8 @@ load_pedar <- function(pressure_filepath) {
 #' @param pressure_filepath String. Filepath pointing to pliance pressure file
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. String with sensor type
 #'   \item time. Numeric value for time between measurements
@@ -369,8 +370,8 @@ load_pliance <- function(pressure_filepath) {
 #' @param rotate Numeric. Rotate pressure image 90, 180, or 270 degrees
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -513,8 +514,8 @@ load_tekscan <- function(pressure_filepath, rm_inactive = F, rotate = 0) {
 #' @param pressure_filepath String. Filepath pointing to emed pressure file
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -619,6 +620,7 @@ load_footscan <- function(pressure_filepath) {
 #' pressure_data <- load_xsensor(xsensor_data)
 #' @importFrom abind abind
 #' @export
+
 load_xsensor <- function(pressure_filepath) {
   # check parameters
   ## file exists
@@ -721,8 +723,8 @@ load_xsensor <- function(pressure_filepath) {
 #' @param pressure_filepath String. Filepath pointing to stappone pressure file
 #' @return A list with information about the pressure data.
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. String with sensor type
 #'   \item time. Numeric value for time between measurements
@@ -787,8 +789,8 @@ load_stappone <- function(pressure_filepath) {
 #' @param interp_to Integer. Number of frames to interpolate to
 #' @return
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -836,6 +838,82 @@ pressure_interp <- function(pressure_data, interp_to) {
 
 # =============================================================================
 
+#' @title Manually remove individual sensors
+#' @description Select sensors, often with abherrant readings, and remove from
+#' the dataset
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement. z dimension represents time.
+#' @return
+#' \itemize{
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
+#'   \item pressure_system. String defining pressure system
+#'   \item sens_size. Numeric vector with the dimensions of the sensors
+#'   \item time. Numeric value for time between measurements
+#'   \item masks. List
+#'   \item events. List
+#'   \item sensor_polygons. Data frame with corners of sensors
+#'   \item max_matrix. Matrix
+#'  }
+#' @examplesIf interactive()
+#' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
+#' pressure_data <- load_emed(emed_data)
+#' pressure_data <- clean_pressure(pressure_data)
+#' @export
+
+clean_pressure <- function(pressure_data) {
+  # set up global variables
+  id <- NULL
+
+  # plot pressure image
+  grDevices::x11()
+  g <- plot_pressure(pressure_data, plot = FALSE)
+  print(g)
+
+  # select sensor
+  sensor_pts <- gglocator(1)
+
+  # find which sensors points fall in
+  sens_polys <- pressure_data[[7]]
+  sens_polys[, 1] <- round(sens_polys[, 1], 8)
+  sens_polys[, 2] <- round(sens_polys[, 2], 8)
+  sensor_polygons <- sens_df_2_polygon(sens_polys)
+  point <- sf::st_point(c(sensor_pts[1, 1], sensor_pts[1, 2]))
+  for (sens_idx in 1:length(sensor_polygons)) {
+    if (length(st_intersects(sensor_polygons[[sens_idx]], point)[[1]]) == 1) {
+      sensor_n <- sens_idx
+    }
+  }
+
+  # remove sensor values
+  pressure_data_1 <- pressure_data[[1]]
+  pressure_data_1 <- pressure_data_1[, -sensor_n]
+  pressure_data[[1]] <- pressure_data_1
+
+  # remove sensor area
+  pressure_data_3 <- pressure_data[[3]]
+  pressure_data_3 <- pressure_data_3[-sensor_n]
+  pressure_data[[3]] <- pressure_data_3
+
+  # remove sensor polygon
+  pressure_data_7 <- pressure_data[[7]]
+  pressure_data_7 <- pressure_data_7 %>% filter(id != sensor_n)
+  pressure_data[[7]] <- pressure_data_7
+
+  # remove from max_matrix
+  sensor_pts
+  row_pos <- ceiling(sensor_pts[2] / 0.005)
+  col_pos <- ceiling(sensor_pts[1] / 0.005)
+  pressure_data_8 <- pressure_data[[8]]
+  pressure_data[[8]] <- pressure_data_8
+
+  # return
+  return(pressure_data)
+}
+
+
+# =============================================================================
+
 #' @title Select steps
 #' @description Select steps, usually from insole data, and format for analysis
 #' @param pressure_data List. First item should be a 3D array covering each
@@ -850,8 +928,8 @@ pressure_interp <- function(pressure_data, interp_to) {
 #' and not representative of steady state walking so this removes them
 #' @return
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -927,8 +1005,8 @@ select_steps <- function (pressure_data, threshold = "auto", min_frames = 10,
 #' right), usually would only be needed for barefoot pressure plate data.
 #' Generally reliable but may be thrown off by severe deformities or abnormal
 #' walking patterns
-#' @param pressure_data List. First item should be a 3D array covering each
-#' timepoint of the measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @return String. "LEFT" or "RIGHT"
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
@@ -1011,8 +1089,8 @@ auto_detect_side <- function(pressure_data) {
 #' @title Whole pressure curve
 #' @description Generates vectors with option to plot for force, peak/mean
 #' pressure and area for complete measurement. Useful for checking data
-#' @param pressure_data List. A 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param variable String. "peak_pressure", "force", or "area"
 #' @param side For insole data only
 #' @param threshold Numeric. Threshold value for sensor to be considered active.
@@ -1118,8 +1196,8 @@ whole_pressure_curve <- function(pressure_data, variable, side, threshold = 10,
 #' @title Center of pressure
 #' @description Generates xy coordinates for center of pressure during each
 #' frame of measurement
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @return Data frame with x and y coordinates of COP throughout trial
 #' @examples
 #' emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
@@ -1165,8 +1243,8 @@ cop <- function(pressure_data) {
 
 #' @title Footprint
 #' @description Determines footprint of pressure data
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param variable String. "max" = maximum value of each sensor across full
 #' dataset. "mean" = average value of sensors over full dataset."frame" = an
 #' individual pressure frame. "meanmax" average max values across cycles (
@@ -1248,8 +1326,8 @@ footprint <- function(pressure_data, variable = "max", frame = NULL,
 
 #' @title Plot pressure
 #' @description Produces visualization of pressure data
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param variable String. "max" = footprint of maximum sensors. "mean" =
 #' average value of sensors over time (usually for static analyses). "frame" =
 #' an individual frame
@@ -1418,8 +1496,8 @@ plot_pressure <- function(pressure_data, variable = "max", smooth = FALSE,
 
 #' @title Animate pressure
 #' @description Produces animation (gif) of pressure data
-#' @param pressure_data Array. A 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param plot_colors String
 #' @param fps Numeric. Number of frames per second in animation
 #' @param dpi Numeric. Resolution of gif
@@ -1491,8 +1569,8 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 
 #' @title Create masking
 #' @description Allows user to manually define mask regions
-#' @param pressure_data List. First item is a matrix covering each timepoint
-#' of the measurement.
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param mask_definition String. "by_vertices" or "by_sensors". The first
 #' option let's you draw a shape around the area you want to select, the
 #' second allows you to define this area by clicking on specific sensors
@@ -1506,8 +1584,8 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' @param plot Logical. Show new maks on pressure image
 #' @return List. Mask(s) are added to pressure data variable
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -1669,8 +1747,8 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
 #' @title Automatically mask pressure footprint
 #' @description Automatically creates mask for footprint data
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param masking_scheme String. "automask_simple", "automask_novel",
 #' "pedar_mask1", "pedar_mask2", "pedar_mask3", "template".
 #' "simple_automask" applies a simple 3 part mask (hindfoot, midfoot, forefoot)
@@ -1700,8 +1778,8 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 #' @param toe_start Numeric. Adjust lateral start point of toe line
 #' @return List. Masks are added to pressure data variable
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -1779,8 +1857,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 
 #' @title Edit mask
 #' @description Allows user to manually adjust mask vertices
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement.
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param n_edit Numeric. Number of vertices to edit
 #' @param threshold Numeric. Distance between point clicked and vertex that is
 #' selected
@@ -1791,8 +1869,8 @@ create_mask_auto <- function(pressure_data, masking_scheme, foot_side = "auto",
 #' average value of sensors over time
 #' @return List. Edited mask is added to the pressure data variable
 #' \itemize{
-#'   \item pressure_array. 3D array covering each timepoint of the measurement.
-#'            z dimension represents time
+#'   \item pressure_array. 2D array covering each timepoint of the measurement.
+#'            Sensors are columns, time is rows
 #'   \item pressure_system. String defining pressure system
 #'   \item sens_size. Numeric vector with the dimensions of the sensors
 #'   \item time. Numeric value for time between measurements
@@ -1905,8 +1983,8 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 #' @description Determine Center of Pressure Excursion Index (CPEI) for
 #' footprint pressure data
 #' @author Scott Telfer \email{scott.telfer@gmail.com}
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement. Not currently available for pedar.
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement. Not currently available for pedar.
 #' @param foot_side String. "right" or "left". Required for automatic detection
 #' of points
 #' @param plot_result Logical. Plots pressure image with COP and CPEI overlaid
@@ -2112,8 +2190,8 @@ cpei <- function(pressure_data, foot_side = "auto", plot_result = TRUE) {
 # =============================================================================
 
 #' Analyze masked regions of pressure data
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param partial_sensors Logical Defines how sensors that do not
 #'   lie wholly within mask are dealt with. If FALSE, they will be excluded;
 #'   if TRUE, for relevant variables their contribution will be weighted by the
@@ -2364,8 +2442,8 @@ mask_analysis <- function(pressure_data, partial_sensors = FALSE,
 # =============================================================================
 
 #' Calculate Arch Index.
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param plot Logical. Not implemented yet
 #' @return Numeric. Arch index value
 #' @examples
@@ -2502,8 +2580,8 @@ arch_index <- function(pressure_data, plot = TRUE) {
 
 #' @title Get outline of pressure region
 #' Determine outline (convex hull) of pressure measurement
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param pressure_image String. "max" = footprint of maximum sensors. "frame"
 #' = an individual frame
 #' @param frame Integer. Frame number to use
@@ -2683,8 +2761,8 @@ masks_2_df <- function(masks) {
 
 #' @title Get coordinates of active sensors
 #' @description Produces a data frame with coordinates of sensors
-#' @param pressure_data List. Includes a 3D array covering each timepoint of the
-#'   measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param pressure_image. String. Which pressure image to use. Options are
 #' "all_active", "all", or "frame".
 #' @param frame Numeric. If pressure image is frame, the numeric value should be
@@ -3406,7 +3484,7 @@ edge_lines <- function(pressure_data, side) {
   x <- y <- x_coord <- y_coord <- me <- sc_df <- mbb <- NULL
 
   # max pressure image
-  max_fp <- pressure_data[[8]]
+  #max_fp <- pressure_data[[8]]
 
   # coordinates
   sens_coords <- pressure_data[[7]][, c(1, 2)]
@@ -3636,8 +3714,8 @@ align_mask <- function(pressure_data, masks) {
 
 #' @title Visualize masks
 #' @description Visualize the existing masks
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement.
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param visual_list List. Mask numbers that want to be viewed. (Default is
 #' all exisiting masks)
 #' @param image String."max" = footprint of maximum sensors. "mean"
@@ -3981,8 +4059,8 @@ sensor_centroid <- function(pressure_data) {
 
 #' @title automask footprint
 #' @description Automatically creates mask of footprint data
-#' @param pressure_data List. First item is a 3D array covering each timepoint
-#' of the measurement. z dimension represents time
+#' @param pressure_data List. First item should be a 2D array covering each
+#' timepoint of the measurement.
 #' @param mask_scheme String.
 #' @param res_scale Numeric vector. Defines low cost functions for lines
 #' @param foot_side String. "RIGHT", "LEFT", or "auto". Auto uses

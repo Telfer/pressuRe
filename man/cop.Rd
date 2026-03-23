@@ -7,8 +7,8 @@
 cop(pressure_data)
 }
 \arguments{
-\item{pressure_data}{List. First item is a 3D array covering each timepoint
-of the measurement. z dimension represents time}
+\item{pressure_data}{List. First item should be a 2D array covering each
+timepoint of the measurement.}
 }
 \value{
 Data frame with x and y coordinates of COP throughout trial

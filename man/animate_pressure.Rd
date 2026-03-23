@@ -13,8 +13,8 @@ animate_pressure(
 )
 }
 \arguments{
-\item{pressure_data}{Array. A 3D array covering each timepoint of the
-measurement. z dimension represents time}
+\item{pressure_data}{List. First item should be a 2D array covering each
+timepoint of the measurement.}
 
 \item{plot_colors}{String}
 
@@ -34,6 +34,6 @@ Produces animation (gif) of pressure data
 \dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
-animate_pressure(pressure_data, fps = 10, file_name = "pli_gif.gif")
+animate_pressure(pressure_data, fps = 10, file_name = "stapp_gif.gif")
 \dontshow{\}) # examplesIf}
 }

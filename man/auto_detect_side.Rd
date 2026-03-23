@@ -7,8 +7,8 @@
 auto_detect_side(pressure_data)
 }
 \arguments{
-\item{pressure_data}{List. First item should be a 3D array covering each
-timepoint of the measurement. z dimension represents time}
+\item{pressure_data}{List. First item should be a 2D array covering each
+timepoint of the measurement.}
 }
 \value{
 String. "LEFT" or "RIGHT"

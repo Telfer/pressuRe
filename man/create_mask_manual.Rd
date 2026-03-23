@@ -17,8 +17,8 @@ create_mask_manual(
 )
 }
 \arguments{
-\item{pressure_data}{List. First item is a matrix covering each timepoint
-of the measurement.}
+\item{pressure_data}{List. First item should be a 2D array covering each
+timepoint of the measurement.}
 
 \item{mask_definition}{String. "by_vertices" or "by_sensors". The first
 option let's you draw a shape around the area you want to select, the
@@ -42,8 +42,8 @@ sharing vertex coordinates}
 \value{
 List. Mask(s) are added to pressure data variable
 \itemize{
-  \item pressure_array. 3D array covering each timepoint of the measurement.
-           z dimension represents time
+  \item pressure_array. 2D array covering each timepoint of the measurement.
+           Sensors are columns, time is rows
   \item pressure_system. String defining pressure system
   \item sens_size. Numeric vector with the dimensions of the sensors
   \item time. Numeric value for time between measurements

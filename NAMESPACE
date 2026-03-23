@@ -3,6 +3,7 @@
 export(animate_pressure)
 export(arch_index)
 export(auto_detect_side)
+export(clean_pressure)
 export(cop)
 export(cpei)
 export(create_mask_auto)

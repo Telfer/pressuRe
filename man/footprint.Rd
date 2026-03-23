@@ -7,8 +7,8 @@
 footprint(pressure_data, variable = "max", frame = NULL, plot = FALSE)
 }
 \arguments{
-\item{pressure_data}{List. Includes a 3D array covering each timepoint of the
-measurement. z dimension represents time}
+\item{pressure_data}{List. First item should be a 2D array covering each
+timepoint of the measurement.}
 
 \item{variable}{String. "max" = maximum value of each sensor across full
 dataset. "mean" = average value of sensors over full dataset."frame" = an

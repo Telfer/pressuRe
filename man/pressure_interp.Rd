@@ -14,8 +14,8 @@ timepoint of the measurement. z dimension represents time.}
 }
 \value{
 \itemize{
-  \item pressure_array. 3D array covering each timepoint of the measurement.
-           z dimension represents time
+  \item pressure_array. 2D array covering each timepoint of the measurement.
+           Sensors are columns, time is rows
   \item pressure_system. String defining pressure system
   \item sens_size. Numeric vector with the dimensions of the sensors
   \item time. Numeric value for time between measurements
