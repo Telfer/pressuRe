@@ -1165,8 +1165,7 @@ whole_pressure_curve <- function(pressure_data, variable, side, threshold = 10,
       # find active area for each frame and store in vector
       active_cells <- pressure_data[[1]]
       active_cells[active_cells > 0] <- 1
-      active_cells <- t(t(active_cells) * pressure_data[[3]])
-      values <- rowSums(active_cells) * 10000
+      values <- rowSums(active_cells) * pressure_data[[3]][1] * 10000
     }
     variable_units <- "contact area (cm2)"
   }
