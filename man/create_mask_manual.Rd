@@ -57,7 +57,7 @@ List. Mask(s) are added to pressure data variable
 Allows user to manually define mask regions
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_vertices",

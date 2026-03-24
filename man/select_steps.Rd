@@ -45,7 +45,7 @@ and not representative of steady state walking so this removes them}
 Select steps, usually from insole data, and format for analysis
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 pedar_data <- system.file("extdata", "pedar_example.asc", package = "pressuRe")
 pressure_data <- load_pedar(pedar_data)
 pressure_data <- select_steps(pressure_data)

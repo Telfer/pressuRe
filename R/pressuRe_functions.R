@@ -2129,7 +2129,7 @@ cpei <- function(pressure_data, foot_side = "auto", plot_result = TRUE) {
     #g <- g + geom_line(data = med_side_df, aes(X, Y), linetype = "dashed",
     #                   color = "black", size = 1.5)
     g <- g + geom_line(data = cpe_df, aes(X, Y), color = "black",
-                       size = 2)
+                       linewidth = 2)
     g <- g + geom_line(data = cop_side_df, aes(X, Y), colour = "blue",
                        alpha = 0.8)
     print(g)

@@ -31,7 +31,7 @@ Animation in gif format
 Produces animation (gif) of pressure data
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 animate_pressure(pressure_data, fps = 10, file_name = "stapp_gif.gif")

@@ -46,7 +46,7 @@ List. Edited mask is added to the pressure data variable
 Allows user to manually adjust mask vertices
 }
 \examples{
-\dontshow{if (interactive()) (if (getRversion() >= "3.4") withAutoprint else force)(\{ # examplesIf}
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
 emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
 pressure_data <- load_emed(emed_data)
 pressure_data <- create_mask_auto(pressure_data, "automask_novel",
