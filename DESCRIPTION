@@ -7,7 +7,6 @@ Authors@R: c(person("Scott", "Telfer", , "scott.telfer@gmail.com", role = c("aut
 Description: Allows biomechanical pressure data from a range of systems to be imported and processed in a reproducible manner. Automatic and manual tools are included to let the user define regions (masks) to be analyzed. Also includes functions for visualizing and animating pressure data. Example methods are described in Shi et al., (2022) <doi:10.1038/s41598-022-19814-0>, Lee et al., (2014) <doi:10.1186/1757-1146-7-18>, van der Zward et al., (2014) <doi:10.1186/1757-1146-7-20>, Najafi et al., (2010) <doi:10.1016/j.gaitpost.2009.09.003>, Cavanagh and Rodgers (1987) <doi:10.1016/0021-9290(87)90255-7>.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 RoxygenNote: 7.3.3
 URL: https://github.com/Telfer/pressuRe
 Imports: 
