@@ -1600,7 +1600,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' n_masks = 1, n_verts = 4)
 #' pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_sensors",
 #' n_masks = 1, n_sens = 8)
-#' @importFrom grDevices x11 windows
+#' @importFrom grDevices dev.new
 # @importFrom ggmap gglocator
 #' @importFrom ggplot2 aes geom_path
 #' @importFrom sf st_polygon
