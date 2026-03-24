@@ -21,7 +21,7 @@ create_mask_manual(
 timepoint of the measurement.}
 
 \item{mask_definition}{String. "by_vertices" or "by_sensors". The first
-option let's you draw a shape around the area you want to select, the
+option lets you draw a shape around the area you want to select, the
 second allows you to define this area by clicking on specific sensors}
 
 \item{n_masks}{Numeric. Number of masks to add}

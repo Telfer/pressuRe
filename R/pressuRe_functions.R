@@ -871,7 +871,7 @@ clean_pressure <- function(pressure_data) {
   print(g)
 
   # select sensor
-  sensor_pts <- gglocator(1)
+  sensor_pts <- gg_locator(1)
 
   # find which sensors points fall in
   sens_polys <- pressure_data[[7]]
@@ -1571,7 +1571,7 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' @param pressure_data List. First item should be a 2D array covering each
 #' timepoint of the measurement.
 #' @param mask_definition String. "by_vertices" or "by_sensors". The first
-#' option let's you draw a shape around the area you want to select, the
+#' option lets you draw a shape around the area you want to select, the
 #' second allows you to define this area by clicking on specific sensors
 #' @param n_masks Numeric. Number of masks to add
 #' @param n_verts Numeric. Number of vertices in mask
@@ -1600,8 +1600,8 @@ animate_pressure <- function(pressure_data, plot_colors = "default", fps,
 #' n_masks = 1, n_verts = 4)
 #' pressure_data <- create_mask_manual(pressure_data, mask_definition = "by_sensors",
 #' n_masks = 1, n_sens = 8)
-#' @importFrom grDevices x11
-#' @importFrom ggmap gglocator
+#' @importFrom grDevices x11 windows
+# @importFrom ggmap gglocator
 #' @importFrom ggplot2 aes geom_path
 #' @importFrom sf st_polygon
 #' @export
@@ -1632,11 +1632,12 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
         mask_coord
     }
   } else {
-    grDevices::x11()
+    dev.new(noRStudioGD = TRUE)
     g <- plot_pressure(pressure_data, plot = FALSE)
     #g <- g + scale_x_continuous(expand = c(0, 0), limits = c(-0.01, 0.15))
     #g <- g + scale_y_continuous(expand = c(0, 0), limits = c(-0.01, 0.30))
     print(g)
+    #readline("Press Enter when the plot has loaded...")
   }
 
   # define mask by vertices
@@ -1646,7 +1647,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
       # interactively select area
       message("Select mask corners")
-      mask <- gglocator(n_verts)
+      mask <- gg_locator(n_verts)
 
       # if requested, allow closely selected mask vertices to share a vertex
       if (threshold > 0) {
@@ -1690,7 +1691,7 @@ create_mask_manual <- function(pressure_data, mask_definition = "by_vertices", n
 
     # selection of sensors
     message(paste0("Select ", n_sens, " adjacent sensors to define your custom mask"))
-    sensor_pts <- gglocator(n_sens)
+    sensor_pts <- gg_locator(n_sens)
 
     # find which sensors points fall in
     sens_polys <- pressure_data[[7]]
@@ -1918,7 +1919,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
     color_v <- rainbow(n_edit + 1)
     for (edit in seq(1, n_edit)){
       message("Select mask vertex to edit, then it's new location")
-      mask <- gglocator(2)
+      mask <- gg_locator(2)
       mask_vertices_edit[nrow(mask_vertices_edit) + 1, ] <- mask[1, ]
       edit_distance <- as.matrix(dist(mask_vertices_edit))
       close_v <-
@@ -1927,7 +1928,7 @@ edit_mask <- function(pressure_data, n_edit, threshold = 0.002,
 
       while (length(close_v) == 0) {
         message("The point selected isn't close to any existing vertex, try again")
-        mask <- gglocator(2)
+        mask <- gg_locator(2)
         mask_vertices_edit[nrow(mask_vertices_edit) + 1, ] <- mask[1,]
         edit_distance <- as.matrix(dist(mask_vertices_edit))
         close_v <-
@@ -2141,7 +2142,7 @@ cpei <- function(pressure_data, foot_side = "auto", plot_result = TRUE) {
   # manual select function
   #manually_select <- function(n_points, mess) {
   #  message(mess)
-  #  x <- gglocator(n_points)
+  #  x <- gg_locator(n_points)
   #  colnames(x) <- c("x_coord", "y_coord")
   #  return(x)
   #}
@@ -3736,6 +3737,7 @@ plot_masks <- function(pressure_data,
   X <- Y <- NULL
 
   # initialize plot
+  dev.new(noRStudioGD = TRUE)
   #grDevices::x11()
 
   if (pressure_data[[2]] != "pedar"){
@@ -4581,6 +4583,30 @@ dpli <- function(pressure_data_, pressure_data, sens_mask_df, mask,
   return(val)
 }
 
+
+#' title gglocator replacement
+#' @noRd
+gg_locator <- function(n = 1) {
+  coords <- data.frame(x = numeric(n), y = numeric(n))
+
+  pb <- ggplot2::ggplot_build(ggplot2::last_plot())
+  x_range <- pb$layout$panel_params[[1]]$x.range
+  y_range <- pb$layout$panel_params[[1]]$y.range
+
+  vp_tree <- as.character(grid::current.vpTree(all = TRUE))
+  panel_vp <- regmatches(vp_tree, regexpr("panel\\.[0-9]+-[0-9]+-[0-9]+-[0-9]+", vp_tree))
+
+  grid::seekViewport(panel_vp)
+
+  for (i in 1:n) {
+    loc <- grid::grid.locator("npc")
+    coords[i, 1] <- x_range[1] + as.numeric(loc$x) * diff(x_range)
+    coords[i, 2] <- y_range[1] + as.numeric(loc$y) * diff(y_range)
+  }
+
+  grid::upViewport(0)
+  return(coords)
+}
 
 # =============================================================================
 
