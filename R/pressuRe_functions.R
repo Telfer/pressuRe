@@ -172,7 +172,7 @@ load_emed <- function(pressure_filepath, trim_active = FALSE) {
   # return formatted emed data
   return(list(pressure_array = full_mat, pressure_system = "emed",
               sens_size = sens_areas, time = time, masks = NULL, events = NULL,
-              sens_polygons = sens_array, max_matrix = max_mat))
+              sensor_polygons = sens_array, max_matrix = max_mat))
 }
 
 
@@ -594,7 +594,7 @@ load_footscan <- function(pressure_filepath) {
   # return formatted data
   return(list(pressure_array = full_mat, pressure_system = "footscan",
               sens_size = sens_areas, time = time, masks = NULL, events = NULL,
-              sensor_polygon = sens_polygons, max_matrix = max_mat))
+              sensor_polygons = sens_polygons, max_matrix = max_mat))
 }
 
 
@@ -712,7 +712,7 @@ load_xsensor <- function(pressure_filepath) {
   # return formatted xsensor data
   return(list(pressure_array = full_mat, pressure_system = "xsensor",
               sens_size = sens_areas, time = time, masks = NULL, events = NULL,
-              sens_polygons = sens_array, max_matrix = max_mat))
+              sensor_polygons = sens_array, max_matrix = max_mat))
 }
 
 
@@ -2783,8 +2783,8 @@ sensor_coords <- function(pressure_data, pressure_image = "all_active", frame) {
   }
 
   # dimensions
-  sens_x <- abs(unique(pressure_data$sens_polygons$x)[2] - unique(pressure_data$sens_polygons$x)[1])
-  sens_y <- abs(unique(pressure_data$sens_polygons$y)[2] - unique(pressure_data$sens_polygons$y)[1])
+  sens_x <- abs(unique(pressure_data$sensor_polygons$x)[2] - unique(pressure_data$sensor_polygons$x)[1])
+  sens_y <- abs(unique(pressure_data$sensor_polygons$y)[2] - unique(pressure_data$sensor_polygons$y)[1])
 
   # data frame with active sensors as coordinates
   x_cor <- seq(from = sens_x / 2, by = sens_x, length.out = ncol(sens))
@@ -3687,7 +3687,7 @@ icp_mask <- function(x, y, mask_list, iterations = 100, mindist = 1e15,
 #' @noRd
 align_mask <- function(pressure_data, masks) {
   # get outline of pressure
-  outline_coords <- pressure_data$sens_polygons[, c(1, 2)] %>%
+  outline_coords <- pressure_data$sensor_polygons[, c(1, 2)] %>%
     st_as_sf(coords = c("x", "y"))
   outline_chull <- st_convex_hull(st_combine(outline_coords))
   outline_coords_mat <- st_coordinates(outline_chull)[, c(1, 2)]
