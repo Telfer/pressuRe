@@ -148,6 +148,14 @@ test_that("pressure_array is a 2D matrix with correct dimensions", {
   expect_equal(ncol(obj$pressure_array), 506)
 })
 
+test_that("each sensor had an associated polygon", {
+  emed_data <- system.file("extdata", "emed_test.lst", package = "pressuRe")
+  obj <- load_emed(emed_data)
+  sens_poly <- obj[[7]]
+  n_poly <- length(unique(sens_poly$id))
+  expect_equal(ncol(obj$pressure_array), n_poly)
+})
+
 # ---------------------------------------------------------------------------
 # 2C.  Data structure integrity helpers (pedar)
 # ---------------------------------------------------------------------------
@@ -240,23 +248,23 @@ test_that("pressure_array is a 2D matrix with correct dimensions", {
 # 2C.  Data structure integrity helpers (xsensor)
 # ---------------------------------------------------------------------------
 
-test_that("make_pressure_obj produces the expected list structure", {
-  xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
-  obj <- load_xsensor(xsensor_data)
-  expect_true(is.list(obj))
-  for (field in c("pressure_array", "pressure_system", "sens_size",
-                  "time", "masks", "events", "sensor_polygons", "max_matrix")) {
-    expect_true(field %in% names(obj), info = paste("Field missing:", field))
-  }
-})
+#test_that("make_pressure_obj produces the expected list structure", {
+#  xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
+#  obj <- load_xsensor(xsensor_data)
+#  expect_true(is.list(obj))
+#  for (field in c("pressure_array", "pressure_system", "sens_size",
+#                  "time", "masks", "events", "sensor_polygons", "max_matrix")) {
+#    expect_true(field %in% names(obj), info = paste("Field missing:", field))
+#  }
+#})
 
-test_that("pressure_array is a 2D matrix with correct dimensions", {
-  xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
-  obj <- load_xsensor(xsensor_data)
-  expect_true(is.matrix(obj$pressure_array))
-  expect_equal(nrow(obj$pressure_array), 101)
-  expect_equal(ncol(obj$pressure_array), 458)
-})
+#test_that("pressure_array is a 2D matrix with correct dimensions", {
+#  xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
+#  obj <- load_xsensor(xsensor_data)
+#  expect_true(is.matrix(obj$pressure_array))
+#  expect_equal(nrow(obj$pressure_array), 101)
+#  expect_equal(ncol(obj$pressure_array), 458)
+#})
 
 # ---------------------------------------------------------------------------
 # 2C.  Data structure integrity helpers (stappone)

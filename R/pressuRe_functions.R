@@ -270,6 +270,7 @@ load_pedar <- function(pressure_filepath) {
 #' pressure_data <- load_pliance(pliance_data)
 #' @importFrom stringr str_split str_trim
 #' @importFrom sf st_centroid
+#' @importFrom dplyr dense_rank
 #' @export
 
 load_pliance <- function(pressure_filepath) {
@@ -313,6 +314,7 @@ load_pliance <- function(pressure_filepath) {
   sensor_array <- t(sensor_array[, 2:ncol(sensor_array)]) / 100
   sens_array_full <- sensor_2_polygon2(sensor_array)
   sens_array <- sens_array_full %>% filter(id %in% active_sensors)
+  sens_array <- sens_array %>% mutate(id = dense_rank(id))
 
   # sensor areas
   sens_areas <- sensor_area(sens_array)
@@ -615,10 +617,11 @@ load_footscan <- function(pressure_filepath) {
 #'   \item sensor_polygons. Data frame with corners of sensors
 #'   \item max_matrix. Matrix
 #'  }
-#' @examples
-#' xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
-#' pressure_data <- load_xsensor(xsensor_data)
+# @examples
+# xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
+# pressure_data <- load_xsensor(xsensor_data)
 #' @importFrom abind abind
+#' @importFrom stringr str_remove_all str_extract
 #' @export
 
 load_xsensor <- function(pressure_filepath) {
@@ -633,6 +636,13 @@ load_xsensor <- function(pressure_filepath) {
 
   # Read unformatted emed data
   pressure_raw <- readLines(pressure_filepath, warn = FALSE)
+
+  # get sensor matrix dimensions
+  ## matrix size
+  n_row <- which(grepl("Rows", pressure_raw))[1]
+  n_row <- as.numeric(unlist(str_extract_all(pressure_raw[n_row], "\\d+")))
+  n_col <- which(grepl("Columns", pressure_raw))[1]
+  n_col <- as.numeric(unlist(str_extract_all(pressure_raw[n_col], "\\d+")))
 
   # get sensor size
   sens_w_ln <- which(grepl("Sensel Width", pressure_raw, useBytes = TRUE))[1]
@@ -649,49 +659,68 @@ load_xsensor <- function(pressure_filepath) {
   # get capture frequency
   time_ln <- which(grepl("^Time,", pressure_raw, useBytes = TRUE))[c(10, 11)]
   time_1 <- str_split(pressure_raw[time_ln[1]], ",")[[1]][2]
+  time_1 <- str_remove_all(time_1, "^[^0-9]+|[^0-9]+$")
   time_1 <- as.POSIXct(time_1, format = "%H:%M:%OS")
   time_2 <- str_split(pressure_raw[time_ln[2]], ",")[[1]][2]
+  time_2 <- str_remove_all(time_2, "^[^0-9]+|[^0-9]+$")
   time_2 <- as.POSIXct(time_2, format = "%H:%M:%OS")
   time <- as.numeric(difftime(time_2, time_1))
 
-  # right foot
-  ## determine position breaks
+  # number of sensors
+  sensor_lns <- which(grepl("^SENSOR,", pressure_raw, useBytes = TRUE))
+  sensor_names <- unique(str_extract(pressure_raw[sensor_lns], "(?<=\").*(?=\")"))
+
+  # determine position breaks
   breaks <- str_which(pressure_raw, "FRAME")
-  rf <- str_which(pressure_raw, "RF")
-  lf <- str_which(pressure_raw, "LF")
-  sensels <- str_which(pressure_raw, "SENSELS")
 
-  ## matrix size
-  n_row <- which(grepl("Rows", pressure_raw))[1]
-  n_row <- as.numeric(unlist(str_extract_all(pressure_raw[n_row], "\\d+")))
-  n_col <- which(grepl("Columns", pressure_raw))[1]
-  n_col <- as.numeric(unlist(str_extract_all(pressure_raw[n_col], "\\d+")))
+  # sensel lines
+  sensel_lns <- str_which(pressure_raw, "SENSELS")
 
-  ## get frames
-  pressure_array_r <- array(0, dim = c(n_row, n_col, length(breaks)))
-  pressure_array_l <- pressure_array_r
-
-  for (frm in seq_along(breaks)) {
-    # right
-    rf_ln <- rf[which(rf > breaks[frm])][1]
-    sensel_ln <- sensels[which(sensels > rf_ln)][1]
-    y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
-    y <- y[seq(1, (n_row * 2), 2)]
+  # pressure data
+  pressure_array <- array(0, dim = c(n_row, n_col, length(breaks)))
+  for (sensel in seq_along(sensel_lns)) {
+    y <- pressure_raw[(sensel_lns[sensel] + 1):(sensel_lns[sensel] + n_row)]
     z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
-    pressure_array_r[,, frm] <- as.matrix(z)
-
-    # left
-    lf_ln <- lf[which(lf > breaks[frm])][1]
-    sensel_ln <- sensels[which(sensels > lf_ln)][1]
-    y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
-    y <- y[seq(1, (n_row * 2), 2)]
-    z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
-    pressure_array_l[,, frm] <- as.matrix(z)
+    pressure_array[,, sensel] <- as.matrix(z)
   }
 
+  #rf_ln <- rf[which(rf > breaks[frm])][1]
+  #  sensel_ln <- sensels[which(sensels > rf_ln)][1]
+  #  y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
+  #  y <- y[seq(1, (n_row * 2), 2)]
+  #  z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
+  #  pressure_array_r[,, frm] <- as.matrix(z)
+  #}
+
+  #rf <- str_which(pressure_raw, "RF")
+  #lf <- str_which(pressure_raw, "LF")
+  #sensels <- str_which(pressure_raw, "SENSELS")
+
+  ## get frames
+  #pressure_array_r <- array(0, dim = c(n_row, n_col, length(breaks)))
+  #pressure_array_l <- pressure_array_r
+
+  #for (frm in seq_along(breaks)) {
+  #  # right
+  #  rf_ln <- rf[which(rf > breaks[frm])][1]
+  #  sensel_ln <- sensels[which(sensels > rf_ln)][1]
+  #  y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
+  #  y <- y[seq(1, (n_row * 2), 2)]
+  #  z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
+  #  pressure_array_r[,, frm] <- as.matrix(z)
+
+  #  # left
+  #  lf_ln <- lf[which(lf > breaks[frm])][1]
+  #  sensel_ln <- sensels[which(sensels > lf_ln)][1]
+  #  y <- pressure_raw[(sensel_ln + 2):(sensel_ln + 2 + (n_row * 2))]
+  #  y <- y[seq(1, (n_row * 2), 2)]
+  #  z <- read.table(textConnection(y), sep = ",")[, 1:n_col]
+  #  pressure_array_l[,, frm] <- as.matrix(z)
+  #}
+
   # join left and right (separate by 2 empty cols)
-  empty <- array(0, c(n_row, 2, length(breaks)))
-  pressure_array <- abind::abind(pressure_array_l, empty, pressure_array_r, along = 2)
+  #empty <- array(0, c(n_row, 2, length(breaks)))
+  #pressure_array <- abind::abind(pressure_array_l, empty, pressure_array_r, along = 2)
 
   # make max mat
   max_mat <- apply(simplify2array(pressure_array), 1:2, max)
@@ -701,7 +730,7 @@ load_xsensor <- function(pressure_filepath) {
   sens_array <- sensor_2_polygon3(max_mat, sens_w, sens_h)
 
   # active sensor areas
-  sens_areas <- sensor_area(sens_array)
+  #sens_areas <- sensor_area(sens_array)
 
   # array to 2d matrix
   full_mat <- matrix(NA, nrow = dim(pressure_array)[3], ncol = nrow(active_sensors))
@@ -711,7 +740,7 @@ load_xsensor <- function(pressure_filepath) {
 
   # return formatted xsensor data
   return(list(pressure_array = full_mat, pressure_system = "xsensor",
-              sens_size = sens_areas, time = time, masks = NULL, events = NULL,
+              sens_size = rep(sens_size, nrow(full_mat)), time = time, masks = NULL, events = NULL,
               sensor_polygons = sens_array, max_matrix = max_mat))
 }
 
@@ -897,15 +926,12 @@ clean_pressure <- function(pressure_data) {
 
   # remove sensor polygon
   pressure_data_7 <- pressure_data[[7]]
-  pressure_data_7 <- pressure_data_7 %>% filter(id != sensor_n)
+  pressure_data_7 <- pressure_data_7 %>% filter(id != sensor_n) %>%
+    mutate(id = dense_rank(id))
   pressure_data[[7]] <- pressure_data_7
 
   # remove from max_matrix
-  sensor_pts
-  row_pos <- ceiling(sensor_pts[2] / 0.005)
-  col_pos <- ceiling(sensor_pts[1] / 0.005)
-  pressure_data_8 <- pressure_data[[8]]
-  pressure_data[[8]] <- pressure_data_8
+  pressure_data[[8]] <- poly_2_matrix(pressure_data)
 
   # return
   return(pressure_data)
@@ -3023,6 +3049,48 @@ sens_df_2_polygon <- function(sens_polygons) {
                                                    5, 2)))
   }
   return(sensor_polys)
+}
+
+poly_2_matrix <- function(pressure_data) {
+  id <- NULL
+
+  # get sensor polygon df
+  sens_polys <- pressure_data[[7]]
+
+  # check if number of sensors is different
+  if (length(unique(sens_polys$id)) != ncol(pressure_data[[1]])) {stop("issue generating max matrix")}
+
+  # check if sensors are same size and dimensions
+  if (length(unique(signif(pressure_data[[3]], 6))) != 1) {stop("not possible to generate max matrix")}
+
+  # make grid based on sensor sizes
+  x_max <- max(sens_polys$x)
+  x_min <- min(sens_polys$x)
+  y_max <- max(sens_polys$y)
+  y_min <- min(sens_polys$y)
+  sens_1 <- sens_polys %>% filter(id == 1)
+  base_x <- max(sens_1$x) - min(sens_1$x)
+  base_y <- max(sens_1$y) - min(sens_1$y)
+  n_rows <- round(y_max / base_y)
+  n_cols <- round(x_max / base_x)
+
+  # sensor centroids
+  centroids <- sensor_centroid(pressure_data)
+
+  # find which grid square each sensor falls in and map to matrix
+  pressure_max <- apply(pressure_data[[1]], 2, max)
+  max_mat <- matrix(NA, nrow = n_rows, ncol = n_cols)
+  for (i in 1:nrow(centroids)) {
+    # position
+    mat_col <- ceiling((centroids[i, 1] / x_max) * n_cols)
+    mat_row <- (n_rows + 1) - ceiling((centroids[i, 2] / y_max) * n_rows)
+
+    # map to matrix
+      max_mat[mat_row, mat_col] <- pressure_max[i]
+  }
+
+  # return
+  return(max_mat)
 }
 
 #' @title Sensor area

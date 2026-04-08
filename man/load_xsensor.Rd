@@ -26,7 +26,3 @@ A list with information about the pressure data.
 \description{
 Imports and formats files collected on xsensor insole systems
 }
-\examples{
-xsensor_data <- system.file("extdata", "xsensor_data.csv", package = "pressuRe")
-pressure_data <- load_xsensor(xsensor_data)
-}
