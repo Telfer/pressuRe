@@ -1,4 +1,9 @@
-# pressure 0.2.5
+# pressuRe 0.2.7
+* Added clean_pressure function that let's user remove noisy/broken sensors from data
+* Added support for Stappone sensors
+* Minor bug fixes
+
+# pressuRe 0.2.5
 * A bunch of improvements to automasking
 * Minor bug fixes
 
